@@ -6,18 +6,18 @@ import "./main.scss";
 
 interface FolderConfig {
   id: string;
-  name: string;           // Base name without number prefix (e.g., "Render")
+  name: string;
   order: number;
   isRenderFolder: boolean;
   renderKeywords?: string[];
-  skipOrganization?: boolean;  // Items in this folder skip further organization
+  skipOrganization?: boolean;
   categories?: CategoryConfig[];
 }
 
 interface CategoryConfig {
   type: CategoryType;
   enabled: boolean;
-  order: number;          // For drag-drop ordering within folder
+  order: number;
   createSubfolders: boolean;
   detectSequences?: boolean;
 }
@@ -34,7 +34,7 @@ interface ExceptionRule {
 interface OrganizerConfig {
   folders: FolderConfig[];
   exceptions: ExceptionRule[];
-  renderCompIds: number[];  // IDs of comps designated as render comps
+  renderCompIds: number[];
 }
 
 interface OrganizeResult {
@@ -56,7 +56,7 @@ interface ProjectStats {
 }
 
 // ===== Config Version =====
-const CONFIG_VERSION = 3;
+const CONFIG_VERSION = 4;
 
 interface VersionedConfig extends OrganizerConfig {
   version?: number;
@@ -68,7 +68,7 @@ const DEFAULT_CONFIG: VersionedConfig = {
   folders: [
     {
       id: "render",
-      name: "Render",  // Will become "00_Render" automatically
+      name: "Render",
       order: 0,
       isRenderFolder: true,
       renderKeywords: ["_render", "_final", "_output", "_export", "RENDER_", "[RENDER]"],
@@ -77,7 +77,7 @@ const DEFAULT_CONFIG: VersionedConfig = {
     },
     {
       id: "source",
-      name: "Source",  // Will become "01_Source"
+      name: "Source",
       order: 1,
       isRenderFolder: false,
       categories: [
@@ -89,8 +89,8 @@ const DEFAULT_CONFIG: VersionedConfig = {
     },
     {
       id: "system",
-      name: "System",  // Will become "99_System"
-      order: 99,
+      name: "System",
+      order: 99, // Always 99
       isRenderFolder: false,
       categories: [
         { type: "Solids", enabled: true, order: 0, createSubfolders: false },
@@ -118,9 +118,8 @@ const getAssignedCategories = (folders: FolderConfig[]): Map<CategoryType, strin
   return assigned;
 };
 
-// Get display name with auto numbering
-const getDisplayFolderName = (folder: FolderConfig, index: number, totalFolders: number): string => {
-  // Special case: System folder always at end
+// Get display name with auto numbering (for ExtendScript only)
+const getDisplayFolderName = (folder: FolderConfig, index: number): string => {
   if (folder.id === "system") {
     return `99_${folder.name}`;
   }
@@ -131,16 +130,14 @@ const getDisplayFolderName = (folder: FolderConfig, index: number, totalFolders:
 // ===== Draggable Category Component =====
 const DraggableCategory = ({
   category,
-  folderId,
-  onToggle,
+  onDelete,
   onToggleSubfolders,
   isDisabled,
   assignedTo,
   dragHandlers,
 }: {
   category: CategoryConfig;
-  folderId: string;
-  onToggle: () => void;
+  onDelete: () => void;
   onToggleSubfolders: () => void;
   isDisabled: boolean;
   assignedTo?: string;
@@ -148,38 +145,55 @@ const DraggableCategory = ({
     onDragStart: (e: React.DragEvent, type: CategoryType) => void;
     onDragOver: (e: React.DragEvent) => void;
     onDrop: (e: React.DragEvent, type: CategoryType) => void;
+    onDragEnd: () => void;
   };
 }) => {
   return (
     <div
       className={`category-item ${isDisabled ? "disabled" : ""}`}
-      draggable={!isDisabled && category.enabled}
-      onDragStart={(e) => dragHandlers.onDragStart(e, category.type)}
-      onDragOver={dragHandlers.onDragOver}
-      onDrop={(e) => dragHandlers.onDrop(e, category.type)}
+      draggable={!isDisabled}
+      onDragStart={(e) => {
+        e.stopPropagation(); // Prevent triggering window drag events
+        dragHandlers.onDragStart(e, category.type);
+      }}
+      onDragOver={(e) => {
+        e.stopPropagation();
+        dragHandlers.onDragOver(e);
+      }}
+      onDrop={(e) => {
+        e.stopPropagation();
+        dragHandlers.onDrop(e, category.type);
+      }}
+      onDragEnd={dragHandlers.onDragEnd}
     >
       <div className="category-drag-handle">⋮⋮</div>
-      <label className="category-checkbox">
-        <input
-          type="checkbox"
-          checked={category.enabled}
-          disabled={isDisabled}
-          onChange={onToggle}
-        />
-        <span>{category.type}</span>
-        {isDisabled && assignedTo && (
-          <span className="assigned-hint">(in {assignedTo})</span>
-        )}
-      </label>
-      {category.enabled && (
-        <label className="subfolder-option">
-          <input
-            type="checkbox"
-            checked={category.createSubfolders}
-            onChange={onToggleSubfolders}
-          />
-          <span>Subfolders</span>
-        </label>
+      <span className="category-name">{category.type}</span>
+      {isDisabled && assignedTo && (
+        <span className="assigned-hint">(in {assignedTo})</span>
+      )}
+      {!isDisabled && (
+        <>
+          <label className="subfolder-option">
+            <input
+              type="checkbox"
+              checked={category.createSubfolders}
+              onChange={(e) => {
+                e.stopPropagation();
+                onToggleSubfolders();
+              }}
+            />
+            <span>Sub</span>
+          </label>
+          <button
+            className="category-delete"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete();
+            }}
+          >
+            ✕
+          </button>
+        </>
       )}
     </div>
   );
@@ -189,7 +203,6 @@ const DraggableCategory = ({
 const FolderItem = ({
   folder,
   displayIndex,
-  totalFolders,
   onUpdate,
   onDelete,
   onMoveUp,
@@ -201,7 +214,6 @@ const FolderItem = ({
 }: {
   folder: FolderConfig;
   displayIndex: number;
-  totalFolders: number;
   onUpdate: (folder: FolderConfig) => void;
   onDelete: () => void;
   onMoveUp: () => void;
@@ -213,32 +225,26 @@ const FolderItem = ({
 }) => {
   const [isExpanded, setIsExpanded] = useState(true);
   const [draggedCategory, setDraggedCategory] = useState<CategoryType | null>(null);
+  const [isDraggingCategory, setIsDraggingCategory] = useState(false);
 
-  const displayName = getDisplayFolderName(folder, displayIndex, totalFolders);
-
-  const toggleCategory = (type: CategoryType) => {
+  const deleteCategory = (type: CategoryType) => {
     const categories = folder.categories || [];
-    const existing = categories.find((c) => c.type === type);
-
-    if (existing) {
-      onUpdate({
-        ...folder,
-        categories: categories.filter((c) => c.type !== type),
-      });
-    } else {
-      const maxOrder = Math.max(0, ...categories.map((c) => c.order));
-      onUpdate({
-        ...folder,
-        categories: [
-          ...categories,
-          { type, enabled: true, order: maxOrder + 1, createSubfolders: false, detectSequences: type === "Footage" || type === "Images" },
-        ],
-      });
-    }
+    onUpdate({
+      ...folder,
+      categories: categories.filter((c) => c.type !== type),
+    });
   };
 
-  const isCategoryEnabled = (type: CategoryType) => {
-    return folder.categories?.some((c) => c.type === type && c.enabled) || false;
+  const addCategory = (type: CategoryType) => {
+    const categories = folder.categories || [];
+    const maxOrder = Math.max(0, ...categories.map((c) => c.order));
+    onUpdate({
+      ...folder,
+      categories: [
+        ...categories,
+        { type, enabled: true, order: maxOrder + 1, createSubfolders: false, detectSequences: type === "Footage" || type === "Images" },
+      ],
+    });
   };
 
   const isCategoryDisabled = (type: CategoryType) => {
@@ -260,7 +266,9 @@ const FolderItem = ({
   const categoryDragHandlers = {
     onDragStart: (e: React.DragEvent, type: CategoryType) => {
       setDraggedCategory(type);
+      setIsDraggingCategory(true);
       e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/category", type); // Mark as category drag
     },
     onDragOver: (e: React.DragEvent) => {
       e.preventDefault();
@@ -280,24 +288,30 @@ const FolderItem = ({
       const [removed] = newCategories.splice(draggedIdx, 1);
       newCategories.splice(targetIdx, 0, removed);
 
-      // Update order numbers
       newCategories.forEach((c, i) => {
         c.order = i;
       });
 
       onUpdate({ ...folder, categories: newCategories });
       setDraggedCategory(null);
+      setIsDraggingCategory(false);
+    },
+    onDragEnd: () => {
+      setDraggedCategory(null);
+      setIsDraggingCategory(false);
     },
   };
 
   const sortedCategories = [...(folder.categories || [])].sort((a, b) => a.order - b.order);
+
+  // Check if this is the system/solids folder
+  const isSystemFolder = folder.id === "system";
 
   return (
     <div className="folder-item">
       <div className="folder-header" onClick={() => setIsExpanded(!isExpanded)}>
         <span className="folder-icon">{isExpanded ? "▼" : "▶"}</span>
         <span className="folder-emoji">📁</span>
-        <span className="folder-display-name">{displayName}</span>
         <input
           type="text"
           className="folder-name-input"
@@ -307,7 +321,7 @@ const FolderItem = ({
           placeholder="Folder name"
         />
         <div className="folder-actions">
-          {!folder.isRenderFolder && (
+          {!folder.isRenderFolder && !isSystemFolder && (
             <>
               <button onClick={(e) => { e.stopPropagation(); onMoveUp(); }} disabled={isFirst}>↑</button>
               <button onClick={(e) => { e.stopPropagation(); onMoveDown(); }} disabled={isLast}>↓</button>
@@ -356,8 +370,7 @@ const FolderItem = ({
                     <DraggableCategory
                       key={cat.type}
                       category={cat}
-                      folderId={folder.id}
-                      onToggle={() => toggleCategory(cat.type)}
+                      onDelete={() => deleteCategory(cat.type)}
                       onToggleSubfolders={() => toggleSubfolders(cat.type)}
                       isDisabled={disabled}
                       assignedTo={assignedFolderName}
@@ -370,19 +383,21 @@ const FolderItem = ({
               )}
 
               {/* Available categories to add */}
-              <div className="add-category">
-                {ALL_CATEGORIES.filter(
-                  (type) => !folder.categories?.some((c) => c.type === type) && !isCategoryDisabled(type)
-                ).map((type) => (
-                  <button
-                    key={type}
-                    className="btn-add-category"
-                    onClick={() => toggleCategory(type)}
-                  >
-                    + {type}
-                  </button>
-                ))}
-              </div>
+              {!isSystemFolder && (
+                <div className="add-category">
+                  {ALL_CATEGORIES.filter(
+                    (type) => !folder.categories?.some((c) => c.type === type) && !isCategoryDisabled(type)
+                  ).map((type) => (
+                    <button
+                      key={type}
+                      className="btn-add-category"
+                      onClick={() => addCategory(type)}
+                    >
+                      + {type}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -398,7 +413,7 @@ export const App = () => {
   const [status, setStatus] = useState<"ready" | "organizing" | "success" | "error">("ready");
   const [result, setResult] = useState<OrganizeResult | null>(null);
   const [stats, setStats] = useState<ProjectStats | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
+  const [isDraggingExternal, setIsDraggingExternal] = useState(false);
   const [isRenderDrop, setIsRenderDrop] = useState(false);
   const [showExceptions, setShowExceptions] = useState(false);
 
@@ -408,7 +423,6 @@ export const App = () => {
     }
     refreshStats();
 
-    // Load saved config (with version check)
     const saved = localStorage.getItem("ae-folder-organizer-config");
     if (saved) {
       try {
@@ -425,38 +439,59 @@ export const App = () => {
     }
   }, []);
 
-  // Save config on change
   useEffect(() => {
     localStorage.setItem("ae-folder-organizer-config", JSON.stringify(config));
   }, [config]);
 
-  // Drag and drop handlers
+  // Drag and drop handlers - ONLY for external files (not internal category drags)
   useEffect(() => {
     let dragCounter = 0;
 
     const onDragEnter = (e: DragEvent) => {
+      // Check if this is an external drag (files from AE project panel)
+      // Internal category drags will have our custom data type
+      const types = e.dataTransfer?.types || [];
+      const isInternalDrag = types.includes("text/category");
+
+      if (isInternalDrag) return; // Don't show overlay for internal drags
+
       e.preventDefault();
       dragCounter++;
-      setIsDragging(true);
+      setIsDraggingExternal(true);
     };
 
     const onDragLeave = (e: DragEvent) => {
+      const types = e.dataTransfer?.types || [];
+      const isInternalDrag = types.includes("text/category");
+
+      if (isInternalDrag) return;
+
       e.preventDefault();
       dragCounter--;
       if (dragCounter === 0) {
-        setIsDragging(false);
+        setIsDraggingExternal(false);
         setIsRenderDrop(false);
       }
     };
 
     const onDragOver = (e: DragEvent) => {
+      const types = e.dataTransfer?.types || [];
+      const isInternalDrag = types.includes("text/category");
+
+      if (isInternalDrag) return;
+
       e.preventDefault();
     };
 
     const onDrop = (e: DragEvent) => {
+      const types = e.dataTransfer?.types || [];
+      const isInternalDrag = types.includes("text/category");
+
+      if (isInternalDrag) return;
+
       e.preventDefault();
       dragCounter = 0;
-      setIsDragging(false);
+      setIsDraggingExternal(false);
       setIsRenderDrop(false);
     };
 
@@ -482,7 +517,6 @@ export const App = () => {
     }
   };
 
-  // Build config with auto-numbered folder names for ExtendScript
   const buildConfigForExtendScript = (): OrganizerConfig => {
     const sortedFolders = [...config.folders]
       .filter((f) => f.id !== "system")
@@ -492,7 +526,7 @@ export const App = () => {
 
     const numberedFolders = sortedFolders.map((folder, index) => ({
       ...folder,
-      name: getDisplayFolderName(folder, index, sortedFolders.length),
+      name: getDisplayFolderName(folder, index),
     }));
 
     if (systemFolder) {
@@ -550,10 +584,9 @@ export const App = () => {
 
   const deleteFolder = (index: number) => {
     const folder = config.folders[index];
-    if (folder.isRenderFolder) return; // Can't delete Render folder
+    if (folder.isRenderFolder || folder.id === "system") return;
 
     const newFolders = config.folders.filter((_, i) => i !== index);
-    // Reorder remaining folders
     newFolders.forEach((f, i) => {
       if (!f.isRenderFolder && f.id !== "system") {
         f.order = i;
@@ -569,13 +602,11 @@ export const App = () => {
     const newFolders = [...config.folders];
     const newIndex = index + direction;
 
-    // Don't move past render folder (index 0) or system folder
     const targetFolder = newFolders[newIndex];
     if (!targetFolder || targetFolder.isRenderFolder || targetFolder.id === "system") return;
 
     [newFolders[index], newFolders[newIndex]] = [newFolders[newIndex], newFolders[index]];
 
-    // Update order numbers (skip render and system)
     let orderNum = 1;
     newFolders.forEach((f) => {
       if (!f.isRenderFolder && f.id !== "system") {
@@ -598,7 +629,6 @@ export const App = () => {
       categories: [],
     };
 
-    // Insert before system folder
     const systemIdx = config.folders.findIndex((f) => f.id === "system");
     const newFolders = [...config.folders];
     if (systemIdx !== -1) {
@@ -633,7 +663,6 @@ export const App = () => {
 
   const assignedCategories = getAssignedCategories(config.folders);
 
-  // Get display indices (excluding system folder from count)
   const getNormalFolderIndex = (folderIndex: number): number => {
     let count = 0;
     for (let i = 0; i < folderIndex; i++) {
@@ -647,10 +676,9 @@ export const App = () => {
 
   return (
     <div className="app" style={{ backgroundColor: bgColor }}>
-      {/* Drag Overlay */}
-      {isDragging && (
+      {/* Drag Overlay - Only for external drags */}
+      {isDraggingExternal && (
         <div className="drop-overlay">
-          {/* Render Comp Drop Zone */}
           <div
             className={`render-drop-zone ${isRenderDrop ? "active" : ""}`}
             onDragOver={(e) => { e.preventDefault(); setIsRenderDrop(true); }}
@@ -659,7 +687,6 @@ export const App = () => {
               e.preventDefault();
               e.stopPropagation();
               setIsRenderDrop(false);
-              // Handle render comp drop
               console.log("Dropped to Render zone");
             }}
           >
@@ -667,7 +694,6 @@ export const App = () => {
             <span className="zone-text">Drop here for Render Comp</span>
           </div>
 
-          {/* Normal Drop Zone */}
           <div className="normal-drop-zone">
             <span className="drop-icon">📥</span>
             <span className="drop-text">Drop items here to organize</span>
@@ -676,13 +702,11 @@ export const App = () => {
       )}
 
       <div className="container">
-        {/* Header */}
         <header className="header">
           <h1>📁 AE Folder Organizer</h1>
           <span className="version">v1.1</span>
         </header>
 
-        {/* Stats */}
         {stats && (
           <section className="stats-section">
             <div className="stats-grid">
@@ -706,7 +730,6 @@ export const App = () => {
           </section>
         )}
 
-        {/* Folder Structure */}
         <section className="folders-section">
           <h2>▼ Folder Structure</h2>
           <div className="folder-list">
@@ -722,7 +745,6 @@ export const App = () => {
                   key={folder.id}
                   folder={folder}
                   displayIndex={getNormalFolderIndex(index)}
-                  totalFolders={normalFolders.length}
                   onUpdate={(f) => updateFolder(index, f)}
                   onDelete={() => deleteFolder(index)}
                   onMoveUp={() => moveFolder(index, -1)}
@@ -740,7 +762,6 @@ export const App = () => {
           </button>
         </section>
 
-        {/* Exceptions */}
         <section className="exceptions-section">
           <h2 onClick={() => setShowExceptions(!showExceptions)}>
             {showExceptions ? "▼" : "▶"} Exceptions
@@ -772,7 +793,7 @@ export const App = () => {
                     >
                       {config.folders.map((f, i) => (
                         <option key={f.id} value={f.id}>
-                          {getDisplayFolderName(f, getNormalFolderIndex(i), config.folders.length)}
+                          {f.name}
                         </option>
                       ))}
                     </select>
@@ -789,7 +810,6 @@ export const App = () => {
           )}
         </section>
 
-        {/* Actions */}
         <section className="action-section">
           <button
             className={`btn-organize ${status === "organizing" ? "loading" : ""}`}
@@ -803,7 +823,6 @@ export const App = () => {
           </button>
         </section>
 
-        {/* Result */}
         {result && (
           <section className={`result-section ${result.success ? "success" : "error"}`}>
             {result.success ? (
