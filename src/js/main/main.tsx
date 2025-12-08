@@ -212,32 +212,40 @@ const SubcategoryItem = ({
         <button className="subcat-delete" onClick={onDelete}>✕</button>
       </div>
 
-      {isExpanded && subcat.filterType !== "all" && (
+      {isExpanded && (
         <div className="subcat-tags-section">
-          <div className="subcat-tags">
-            {tags?.map((tag, idx) => (
-              <span key={idx} className="subcat-tag" onClick={() => removeTag(idx)}>
-                {tag} ×
-              </span>
-            ))}
-            {(!tags || tags.length === 0) && (
-              <span className="subcat-tag warning-tag">⚠ No filters</span>
-            )}
-          </div>
-          <input
-            type="text"
-            placeholder={subcat.filterType === "extension" ? "Add extension (e.g., mp4)" : "Add keyword (e.g., vfx_)"}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                const input = e.currentTarget;
-                const value = input.value.trim();
-                if (value) {
-                  addTag(value);
-                  input.value = "";
-                }
-              }
-            }}
-          />
+          {subcat.filterType === "all" ? (
+            <div className="subcat-tags">
+              <span className="subcat-tag all-tag">📁 All Items (no filter)</span>
+            </div>
+          ) : (
+            <>
+              <div className="subcat-tags">
+                {tags?.map((tag, idx) => (
+                  <span key={idx} className="subcat-tag" onClick={() => removeTag(idx)}>
+                    {tag} ×
+                  </span>
+                ))}
+                {(!tags || tags.length === 0) && (
+                  <span className="subcat-tag warning-tag">⚠ No filters</span>
+                )}
+              </div>
+              <input
+                type="text"
+                placeholder={subcat.filterType === "extension" ? "Add extension (e.g., mp4)" : "Add keyword (e.g., vfx_)"}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    const input = e.currentTarget;
+                    const value = input.value.trim();
+                    if (value) {
+                      addTag(value);
+                      input.value = "";
+                    }
+                  }
+                }}
+              />
+            </>
+          )}
         </div>
       )}
     </div>

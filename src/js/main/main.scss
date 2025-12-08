@@ -393,7 +393,6 @@
 
 .category-name {
   font-size: 11px;
-  flex: 1;
   font-weight: 500;
 }
 
@@ -837,7 +836,7 @@
 
 /* Category Expanded Section */
 .category-expanded {
-  margin-left: 20px;
+  margin-left: 8px;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -989,7 +988,7 @@
 
 /* Subcategory Tags Section */
 .subcat-tags-section {
-  margin-left: 20px;
+  margin-left: 12px;
   padding: 8px 12px;
   background: rgba(0, 0, 0, 0.15);
   border-radius: 4px;
