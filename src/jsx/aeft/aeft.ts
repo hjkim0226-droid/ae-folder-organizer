@@ -193,19 +193,35 @@ const getOrCreateRootFolder = (name: string): FolderItem => {
 };
 
 /**
- * Find or create a subfolder
+ * Find or create a subfolder (supports nested paths like "Footage/_MP4")
  */
-const getOrCreateSubfolder = (name: string, parent: FolderItem): FolderItem => {
-  for (let i = 1; i <= parent.numItems; i++) {
-    const item = parent.item(i);
-    if (item instanceof FolderItem && item.name === name) {
-      return item;
+const getOrCreateSubfolder = (path: string, parent: FolderItem): FolderItem => {
+  const parts = path.split("/");
+  let current = parent;
+
+  for (let p = 0; p < parts.length; p++) {
+    const name = parts[p];
+    if (!name) continue;
+
+    let found: FolderItem | null = null;
+    for (let i = 1; i <= current.numItems; i++) {
+      const item = current.item(i);
+      if (item instanceof FolderItem && item.name === name) {
+        found = item;
+        break;
+      }
+    }
+
+    if (found) {
+      current = found;
+    } else {
+      const folder = app.project.items.addFolder(name);
+      folder.parentFolder = current;
+      current = folder;
     }
   }
 
-  const folder = app.project.items.addFolder(name);
-  folder.parentFolder = parent;
-  return folder;
+  return current;
 };
 
 /**
@@ -426,11 +442,15 @@ export const organizeProject = (configJson: string, itemIdsJson?: string): Organ
             if (mapping) {
               targetFolderId = mapping.folderId;
 
-              // Create subfolders by extension if enabled
+              // Always create category subfolder (e.g., Comps, Footage, Images)
+              targetSubfolder = categoryType;
+
+              // If createSubfolders is enabled, create extension-based sub-subfolder
               if (mapping.config.createSubfolders && item instanceof FootageItem) {
                 const ext = getFileExtension(item.name).toUpperCase();
                 if (ext) {
-                  targetSubfolder = "_" + ext;
+                  // Will create nested: Footage/_MP4
+                  targetSubfolder = categoryType + "/_" + ext;
                 }
               }
             }
