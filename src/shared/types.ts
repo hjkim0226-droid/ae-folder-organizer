@@ -16,8 +16,20 @@ export interface FolderConfig {
 export interface CategoryConfig {
     type: CategoryType;
     enabled: boolean;
+    order?: number;
     createSubfolders: boolean;  // 확장자별 세분 폴더
     detectSequences?: boolean;  // 시퀀스 감지 (Footage/Images만)
+    subcategories?: SubcategoryConfig[];  // 소분류 카테고리 레이어
+}
+
+export interface SubcategoryConfig {
+    id: string;
+    name: string;              // 폴더명 (e.g., "VFX")
+    order: number;
+    filterType: "extension" | "keyword" | "all";
+    extensions?: string[];     // filterType === "extension" 일 때
+    keywords?: string[];       // filterType === "keyword" 일 때
+    keywordRequired?: boolean; // true면 키워드 없으면 분류 안함 (폴더만 생성)
 }
 
 export type CategoryType = "Comps" | "Footage" | "Images" | "Audio" | "Solids";

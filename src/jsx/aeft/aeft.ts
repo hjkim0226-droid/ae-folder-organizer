@@ -25,6 +25,17 @@ interface CategoryConfig {
   createSubfolders: boolean;
   detectSequences?: boolean;
   keywords?: string[];
+  subcategories?: SubcategoryConfig[];
+}
+
+interface SubcategoryConfig {
+  id: string;
+  name: string;
+  order: number;
+  filterType: "extension" | "keyword" | "all";
+  extensions?: string[];
+  keywords?: string[];
+  keywordRequired?: boolean;
 }
 
 interface ExceptionRule {
@@ -254,6 +265,44 @@ const matchesException = (item: Item, exception: ExceptionRule): boolean => {
 };
 
 /**
+ * Match item to subcategory based on filterType
+ */
+const matchSubcategory = (item: Item, subcategory: SubcategoryConfig): boolean => {
+  // keywordRequired = true means no filtering
+  if (subcategory.keywordRequired) return false;
+
+  // all type matches everything
+  if (subcategory.filterType === "all") return true;
+
+  const itemName = item.name.toLowerCase();
+  const ext = getFileExtension(item.name);
+
+  if (subcategory.filterType === "extension" && subcategory.extensions) {
+    for (let i = 0; i < subcategory.extensions.length; i++) {
+      if (subcategory.extensions[i].toLowerCase() === ext) return true;
+    }
+  }
+
+  if (subcategory.filterType === "keyword" && subcategory.keywords) {
+    for (let i = 0; i < subcategory.keywords.length; i++) {
+      const kw = subcategory.keywords[i];
+      if (kw && itemName.indexOf(kw.toLowerCase()) !== -1) return true;
+    }
+  }
+
+  return false;
+};
+
+/**
+ * Generate Others folder name with proper numbering
+ */
+const generateOthersFolderName = (count: number): string => {
+  const orderNum = count + 1;
+  const prefix = (orderNum < 10 ? "0" : "") + orderNum;
+  return prefix + "_Others";
+};
+
+/**
  * Delete empty folders recursively
  */
 const deleteEmptyFolders = (): number => {
@@ -468,8 +517,36 @@ export const organizeProject = (configJson: string, itemIdsJson?: string): Organ
               const numberedCategoryName = orderPrefix + "_" + categoryType;
               targetSubfolder = numberedCategoryName;
 
-              // If createSubfolders is enabled, create extension-based sub-subfolder
-              if (selectedMapping.config.createSubfolders && item instanceof FootageItem) {
+              // Check for subcategories
+              const subcats = selectedMapping.config.subcategories;
+              if (subcats && subcats.length > 0) {
+                let matchedSubcat: SubcategoryConfig | null = null;
+
+                // Sort by order
+                const sortedSubcats = subcats.slice().sort(function (a: SubcategoryConfig, b: SubcategoryConfig) {
+                  return a.order - b.order;
+                });
+
+                // Find matching subcategory
+                for (let s = 0; s < sortedSubcats.length; s++) {
+                  if (matchSubcategory(item, sortedSubcats[s])) {
+                    matchedSubcat = sortedSubcats[s];
+                    break;
+                  }
+                }
+
+                if (matchedSubcat) {
+                  // Create subcategory subfolder
+                  const subPrefix = (matchedSubcat.order < 10 ? "0" : "") + matchedSubcat.order;
+                  targetSubfolder = numberedCategoryName + "/" + subPrefix + "_" + matchedSubcat.name;
+                } else if (sortedSubcats.length >= 2) {
+                  // No match and 2+ subcategories = use Others fallback
+                  const othersName = generateOthersFolderName(sortedSubcats.length);
+                  targetSubfolder = numberedCategoryName + "/" + othersName;
+                }
+                // If only 1 subcategory, stay in parent (acts as "all")
+              } else if (selectedMapping.config.createSubfolders && item instanceof FootageItem) {
+                // Legacy: extension-based sub-subfolder if no subcategories defined
                 const ext = getFileExtension(item.name).toUpperCase();
                 if (ext) {
                   targetSubfolder = numberedCategoryName + "/_" + ext;
