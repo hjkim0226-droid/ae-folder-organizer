@@ -21,6 +21,7 @@ interface CategoryConfig {
   createSubfolders: boolean;
   detectSequences?: boolean;
   keywords?: string[];  // When keywords exist, filter by keywords instead of format
+  needsKeyword?: boolean;  // True when this is a duplicate category requiring keywords
 }
 
 type CategoryType = "Comps" | "Footage" | "Images" | "Audio" | "Solids";
@@ -214,8 +215,12 @@ const DraggableCategory = ({
       {isExpanded && (
         <div className="category-keywords">
           <div className="keyword-tags">
-            {/* Show [All CategoryName] if no keywords */}
-            {(!category.keywords || category.keywords.length === 0) && (
+            {/* Show [Keyword Required] if needsKeyword and no keywords */}
+            {category.needsKeyword && (!category.keywords || category.keywords.length === 0) && (
+              <span className="keyword-tag required-tag">⚠ Keyword Required</span>
+            )}
+            {/* Show [All CategoryName] if no keywords and not needsKeyword */}
+            {!category.needsKeyword && (!category.keywords || category.keywords.length === 0) && (
               <span className="keyword-tag all-tag">All {category.type}</span>
             )}
             {/* Show keyword tags */}
@@ -291,11 +296,24 @@ const FolderItem = ({
   const addCategory = (type: CategoryType) => {
     const categories = folder.categories || [];
     const maxOrder = Math.max(0, ...categories.map((c) => c.order));
+
+    // Check if this category exists in other folders (requires keyword differentiation)
+    const existsElsewhere = folders.some(
+      (f) => f.id !== folder.id && f.categories?.some((c) => c.type === type && c.enabled)
+    );
+
     onUpdate({
       ...folder,
       categories: [
         ...categories,
-        { type, enabled: true, order: maxOrder + 1, createSubfolders: false, detectSequences: type === "Footage" || type === "Images" },
+        {
+          type,
+          enabled: true,
+          order: maxOrder + 1,
+          createSubfolders: false,
+          detectSequences: type === "Footage" || type === "Images",
+          needsKeyword: existsElsewhere,
+        },
       ],
     });
   };

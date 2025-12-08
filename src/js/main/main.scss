@@ -530,6 +530,16 @@
   background: #81c784;
 }
 
+.keyword-tag.required-tag {
+  background: #ffb74d;
+  color: #000;
+  cursor: default;
+}
+
+.keyword-tag.required-tag:hover {
+  background: #ffb74d;
+}
+
 .category-keywords input {
   width: 100%;
   background: rgba(0, 0, 0, 0.3);
