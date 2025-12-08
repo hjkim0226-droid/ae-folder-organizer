@@ -424,6 +424,7 @@
 }
 
 .category-name {
+  flex: 1;
   font-size: 11px;
   font-weight: 500;
 }
@@ -575,6 +576,22 @@
 
 .keyword-tag.required-tag:hover {
   background: #ffb74d;
+}
+
+// Extension tags - blue/purple color for keyword-tag
+.keyword-tag.ext-tag {
+  background: #7c4dff;
+  color: #fff;
+}
+
+.keyword-tag.ext-tag:hover {
+  background: #e57373;
+}
+
+// Prefix tags - same as keyword (yellow)
+.keyword-tag.prefix-tag {
+  background: #ffc107;
+  color: #000;
 }
 
 .category-keywords input {
@@ -1135,6 +1152,22 @@
 
 .subcat-tag.warning-tag:hover {
   background: #ff9800;
+}
+
+// Extension tags - blue/purple color
+.subcat-tag.ext-tag {
+  background: #7c4dff;
+  color: #fff;
+}
+
+.subcat-tag.ext-tag:hover {
+  background: #e57373;
+}
+
+// Prefix tags - same as keyword (yellow)
+.subcat-tag.prefix-tag {
+  background: #ffc107;
+  color: #000;
 }
 
 .subcat-tags-section input {

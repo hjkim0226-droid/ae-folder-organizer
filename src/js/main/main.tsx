@@ -20,18 +20,25 @@ interface CategoryConfig {
   order: number;
   createSubfolders: boolean;
   detectSequences?: boolean;
-  keywords?: string[];  // When keywords exist, filter by keywords instead of format
+  keywords?: string[];  // Legacy - kept for backward compat
+  filters?: SubcategoryFilter[];  // New unified filter system
   needsKeyword?: boolean;  // True when this is a duplicate category requiring keywords
   subcategories?: SubcategoryConfig[];  // Subcategory layers
+}
+
+interface SubcategoryFilter {
+  type: "ext" | "prefix" | "keyword";
+  value: string;
 }
 
 interface SubcategoryConfig {
   id: string;
   name: string;
   order: number;
-  filterType: "extension" | "keyword" | "all";
-  extensions?: string[];
-  keywords?: string[];
+  filterType: "extension" | "keyword" | "all";  // Legacy, kept for backward compat
+  extensions?: string[];  // Legacy
+  keywords?: string[];  // Legacy
+  filters?: SubcategoryFilter[];  // New unified filter system
   keywordRequired?: boolean;
   createSubfolders?: boolean;
 }
@@ -199,37 +206,65 @@ const SubcategoryItem = ({
   onDragEnd: () => void;
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
-  const hasFilters = (subcat.filterType === "extension" && subcat.extensions && subcat.extensions.length > 0) ||
-    (subcat.filterType === "keyword" && subcat.keywords && subcat.keywords.length > 0);
 
-  const addTag = (value: string) => {
-    if (subcat.filterType === "extension") {
-      const newExts = [...(subcat.extensions || []), value];
-      onUpdate({ extensions: newExts });
-    } else if (subcat.filterType === "keyword") {
-      const newKws = [...(subcat.keywords || []), value];
-      onUpdate({ keywords: newKws });
+  // Get filters (migrate legacy data if needed)
+  const getFilters = (): SubcategoryFilter[] => {
+    if (subcat.filters && subcat.filters.length > 0) {
+      return subcat.filters;
     }
+    // Migrate legacy data
+    const migrated: SubcategoryFilter[] = [];
+    if (subcat.extensions) {
+      subcat.extensions.forEach((ext) => migrated.push({ type: "ext", value: ext }));
+    }
+    if (subcat.keywords) {
+      subcat.keywords.forEach((kw) => {
+        if (kw.startsWith("prefix:")) {
+          migrated.push({ type: "prefix", value: kw.substring(7) });
+        } else {
+          migrated.push({ type: "keyword", value: kw });
+        }
+      });
+    }
+    return migrated;
   };
 
-  const removeTag = (index: number) => {
-    if (subcat.filterType === "extension") {
-      const newExts = subcat.extensions?.filter((_, i) => i !== index) || [];
-      onUpdate({ extensions: newExts });
-    } else if (subcat.filterType === "keyword") {
-      const newKws = subcat.keywords?.filter((_, i) => i !== index) || [];
-      onUpdate({ keywords: newKws });
-    }
+  const filters = getFilters();
+  const hasFilters = filters.length > 0;
+
+  const addFilter = (input: string) => {
+    const newFilter: SubcategoryFilter = input.startsWith(".")
+      ? { type: "ext", value: input.substring(1) }
+      : input.startsWith("prefix:")
+        ? { type: "prefix", value: input.substring(7) }
+        : { type: "keyword", value: input };
+    const newFilters = [...filters, newFilter];
+    onUpdate({ filters: newFilters });
   };
 
-  const tags = subcat.filterType === "extension" ? subcat.extensions : subcat.keywords;
+  const removeFilter = (index: number) => {
+    const newFilters = filters.filter((_, i) => i !== index);
+    onUpdate({ filters: newFilters });
+  };
+
+  const getTagClass = (filter: SubcategoryFilter) => {
+    if (filter.type === "ext") return "subcat-tag ext-tag";
+    if (filter.type === "prefix") return "subcat-tag prefix-tag";
+    return "subcat-tag";
+  };
+
+  const getTagLabel = (filter: SubcategoryFilter) => {
+    if (filter.type === "ext") return `.${filter.value}`;
+    if (filter.type === "prefix") return `prefix:${filter.value}`;
+    return filter.value;
+  };
 
   return (
     <div className="subcategory-item-wrapper">
       <div
         className={`subcategory-item ${isDragOver ? "drag-over" : ""}`}
         draggable
-        onDragStart={(e) => { e.stopPropagation(); onDragStart(); }}
+        onDragStart={(e) => { e.stopPropagation(); e.dataTransfer.setData("text/subcategory", subcat.id); onDragStart(); }}
         onDragOver={(e) => { e.stopPropagation(); onDragOver(e); }}
         onDragLeave={onDragLeave}
         onDrop={(e) => { e.stopPropagation(); e.preventDefault(); onDrop(); }}
@@ -249,17 +284,7 @@ const SubcategoryItem = ({
           onChange={(e) => onUpdate({ name: e.target.value })}
           onClick={(e) => e.stopPropagation()}
         />
-        <select
-          className="subcat-filter"
-          value={subcat.filterType}
-          onChange={(e) => onUpdate({ filterType: e.target.value as "extension" | "keyword" | "all" })}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <option value="all">All</option>
-          <option value="extension">Ext</option>
-          <option value="keyword">Keyword</option>
-        </select>
-        {hasFilters && <span className="subcat-tag-count">🏷️{tags?.length}</span>}
+        {hasFilters && <span className="subcat-tag-count">🏷️{filters.length}</span>}
         <label className="subcat-sub-option" onClick={(e) => e.stopPropagation()}>
           <input
             type="checkbox"
@@ -273,38 +298,30 @@ const SubcategoryItem = ({
 
       {isExpanded && (
         <div className="subcat-tags-section">
-          {subcat.filterType === "all" ? (
-            <div className="subcat-tags">
+          <div className="subcat-tags">
+            {filters.map((filter, idx) => (
+              <span key={idx} className={getTagClass(filter)} onClick={() => removeFilter(idx)}>
+                {getTagLabel(filter)} ×
+              </span>
+            ))}
+            {!hasFilters && (
               <span className="subcat-tag all-tag">📁 All Items (no filter)</span>
-            </div>
-          ) : (
-            <>
-              <div className="subcat-tags">
-                {tags?.map((tag, idx) => (
-                  <span key={idx} className="subcat-tag" onClick={() => removeTag(idx)}>
-                    {tag} ×
-                  </span>
-                ))}
-                {(!tags || tags.length === 0) && (
-                  <span className="subcat-tag warning-tag">⚠ No filters</span>
-                )}
-              </div>
-              <input
-                type="text"
-                placeholder={subcat.filterType === "extension" ? "Add extension (e.g., mp4)" : "Add keyword (e.g., vfx_)"}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    const input = e.currentTarget;
-                    const value = input.value.trim();
-                    if (value) {
-                      addTag(value);
-                      input.value = "";
-                    }
-                  }
-                }}
-              />
-            </>
-          )}
+            )}
+          </div>
+          <input
+            type="text"
+            placeholder=".mp4 / prefix:VFX_ / keyword"
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                const input = e.currentTarget;
+                const value = input.value.trim();
+                if (value) {
+                  addFilter(value);
+                  input.value = "";
+                }
+              }
+            }}
+          />
         </div>
       )}
     </div>
@@ -317,7 +334,7 @@ const DraggableCategory = ({
   duplicateKeywords,
   onDelete,
   onToggleSubfolders,
-  onUpdateKeywords,
+  onUpdateFilters,
   onUpdateSubcategories,
   isDragOver,
   dragHandlers,
@@ -326,7 +343,7 @@ const DraggableCategory = ({
   duplicateKeywords?: string[];
   onDelete: () => void;
   onToggleSubfolders: () => void;
-  onUpdateKeywords: (keywords: string[]) => void;
+  onUpdateFilters: (filters: SubcategoryFilter[]) => void;
   onUpdateSubcategories: (subcategories: SubcategoryConfig[]) => void;
   isDragOver: boolean;
   dragHandlers: {
@@ -340,8 +357,56 @@ const DraggableCategory = ({
   const [isExpanded, setIsExpanded] = useState(false);
   const [draggedSubcat, setDraggedSubcat] = useState<string | null>(null);
   const [dragOverSubcat, setDragOverSubcat] = useState<string | null>(null);
-  const hasKeywords = category.keywords && category.keywords.length > 0;
+
+  // Get filters (migrate legacy keywords if needed)
+  const getFilters = (): SubcategoryFilter[] => {
+    if (category.filters && category.filters.length > 0) {
+      return category.filters;
+    }
+    // Migrate legacy keywords
+    const migrated: SubcategoryFilter[] = [];
+    if (category.keywords) {
+      category.keywords.forEach((kw) => {
+        if (kw.startsWith("prefix:")) {
+          migrated.push({ type: "prefix", value: kw.substring(7) });
+        } else if (kw.startsWith(".")) {
+          migrated.push({ type: "ext", value: kw.substring(1) });
+        } else {
+          migrated.push({ type: "keyword", value: kw });
+        }
+      });
+    }
+    return migrated;
+  };
+
+  const filters = getFilters();
+  const hasFilters = filters.length > 0;
   const hasSubcategories = category.subcategories && category.subcategories.length > 0;
+
+  const addFilter = (input: string) => {
+    const newFilter: SubcategoryFilter = input.startsWith(".")
+      ? { type: "ext", value: input.substring(1) }
+      : input.startsWith("prefix:")
+        ? { type: "prefix", value: input.substring(7) }
+        : { type: "keyword", value: input };
+    onUpdateFilters([...filters, newFilter]);
+  };
+
+  const removeFilter = (index: number) => {
+    onUpdateFilters(filters.filter((_, i) => i !== index));
+  };
+
+  const getTagClass = (filter: SubcategoryFilter) => {
+    if (filter.type === "ext") return "keyword-tag ext-tag";
+    if (filter.type === "prefix") return "keyword-tag prefix-tag";
+    return "keyword-tag";
+  };
+
+  const getTagLabel = (filter: SubcategoryFilter) => {
+    if (filter.type === "ext") return `.${filter.value}`;
+    if (filter.type === "prefix") return `prefix:${filter.value}`;
+    return filter.value;
+  };
 
   const addSubcategory = () => {
     const subcats = category.subcategories || [];
@@ -409,7 +474,7 @@ const DraggableCategory = ({
           style={{ cursor: "pointer" }}
         >
           {isExpanded ? "▼" : "▶"} {category.type}
-          {hasKeywords && <span className="keyword-badge">🔑</span>}
+          {hasFilters && <span className="keyword-badge">🔑</span>}
           {hasSubcategories && <span className="subcategory-badge">📂{category.subcategories?.length}</span>}
           {duplicateKeywords && duplicateKeywords.length > 0 && (
             <span className="duplicate-warning" title={`Duplicate: ${duplicateKeywords.join(", ")}`}>⚠️</span>
@@ -439,38 +504,34 @@ const DraggableCategory = ({
 
       {isExpanded && (
         <div className="category-expanded">
-          {/* Keywords Section */}
+          {/* Filters Section */}
           <div className="category-keywords">
             <div className="keyword-tags">
-              {category.needsKeyword && (!category.keywords || category.keywords.length === 0) && (
-                <span className="keyword-tag required-tag">⚠ Keyword Required</span>
+              {category.needsKeyword && !hasFilters && (
+                <span className="keyword-tag required-tag">⚠ Filter Required</span>
               )}
-              {!category.needsKeyword && (!category.keywords || category.keywords.length === 0) && (
+              {!category.needsKeyword && !hasFilters && (
                 <span className="keyword-tag all-tag">All {category.type}</span>
               )}
-              {category.keywords?.map((kw, idx) => (
+              {filters.map((filter, idx) => (
                 <span
                   key={idx}
-                  className="keyword-tag"
-                  onClick={() => {
-                    const newKeywords = category.keywords?.filter((_, i) => i !== idx) || [];
-                    onUpdateKeywords(newKeywords);
-                  }}
+                  className={getTagClass(filter)}
+                  onClick={() => removeFilter(idx)}
                 >
-                  {kw} ×
+                  {getTagLabel(filter)} ×
                 </span>
               ))}
             </div>
             <input
               type="text"
-              placeholder="Add keyword (Enter to add)"
+              placeholder=".mp4 / prefix:VFX_ / keyword"
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   const input = e.currentTarget;
                   const value = input.value.trim();
                   if (value) {
-                    const newKeywords = [...(category.keywords || []), value];
-                    onUpdateKeywords(newKeywords);
+                    addFilter(value);
                     input.value = "";
                   }
                 }
@@ -596,12 +657,12 @@ const FolderItem = ({
     });
   };
 
-  const updateKeywords = (type: CategoryType, keywords: string[]) => {
+  const updateFilters = (type: CategoryType, filters: SubcategoryFilter[]) => {
     const categories = folder.categories || [];
     onUpdate({
       ...folder,
       categories: categories.map((c) =>
-        c.type === type ? { ...c, keywords } : c
+        c.type === type ? { ...c, filters } : c
       ),
     });
   };
@@ -768,7 +829,7 @@ const FolderItem = ({
                         duplicateKeywords={catDuplicates}
                         onDelete={() => deleteCategory(cat.type)}
                         onToggleSubfolders={() => toggleSubfolders(cat.type)}
-                        onUpdateKeywords={(keywords) => updateKeywords(cat.type, keywords)}
+                        onUpdateFilters={(filters) => updateFilters(cat.type, filters)}
                         onUpdateSubcategories={(subcats) => updateSubcategories(cat.type, subcats)}
                         isDragOver={dragOverCategory === cat.type}
                         dragHandlers={{
@@ -881,7 +942,7 @@ export const App = () => {
 
     const onDragEnter = (e: DragEvent) => {
       const types = e.dataTransfer?.types || [];
-      if (types.includes("text/category")) return;
+      if (types.includes("text/category") || types.includes("text/subcategory")) return;
 
       e.preventDefault();
       dragCounter++;
@@ -890,7 +951,7 @@ export const App = () => {
 
     const onDragLeave = (e: DragEvent) => {
       const types = e.dataTransfer?.types || [];
-      if (types.includes("text/category")) return;
+      if (types.includes("text/category") || types.includes("text/subcategory")) return;
 
       e.preventDefault();
       dragCounter--;
@@ -901,13 +962,13 @@ export const App = () => {
 
     const onDragOver = (e: DragEvent) => {
       const types = e.dataTransfer?.types || [];
-      if (types.includes("text/category")) return;
+      if (types.includes("text/category") || types.includes("text/subcategory")) return;
       e.preventDefault();
     };
 
     const onDrop = (e: DragEvent) => {
       const types = e.dataTransfer?.types || [];
-      if (types.includes("text/category")) return;
+      if (types.includes("text/category") || types.includes("text/subcategory")) return;
 
       e.preventDefault();
       dragCounter = 0;

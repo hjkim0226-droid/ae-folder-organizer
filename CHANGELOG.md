@@ -1,5 +1,14 @@
 # Changelog
 
+## [v1.10.1] - 2025-12-09
+### Improved
+- **Category layout** - Name on left, checkbox/X button now right-aligned
+- **Subcategory drag** - No longer triggers drop overlay
+- **Unified filter system** - New tag-based filters for both main categories and subcategories:
+  - `.mp4` → Extension filter (blue/purple tag)
+  - `prefix:VFX_` → Prefix filter (yellow tag)
+  - `fire` → Keyword filter (cyan/yellow tag)
+
 ## [v1.10.0] - 2025-12-09
 ### Added
 - **Batch Rename** - New tool for renaming multiple selected items at once
