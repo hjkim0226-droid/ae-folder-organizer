@@ -428,14 +428,13 @@ export const organizeProject = (configJson: string, itemIdsJson?: string): Organ
         const categoryType = getItemCategory(item, detectSequences);
 
         if (categoryType !== null) {
-          // Handle "Sequences" as a subfolder of Footage/Images
+          // Handle "Sequences" as a subfolder of Footage
           if (categoryType === "Sequences") {
             const footageMapping = categoryFolderMap["Footage"];
             if (footageMapping) {
               targetFolderId = footageMapping.folderId;
-              if (footageMapping.config.createSubfolders) {
-                targetSubfolder = "_Sequences";
-              }
+              // Always put in Footage/Sequences
+              targetSubfolder = "Footage/Sequences";
             }
           } else {
             const mapping = categoryFolderMap[categoryType];
