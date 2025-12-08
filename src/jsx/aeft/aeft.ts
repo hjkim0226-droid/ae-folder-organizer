@@ -21,6 +21,7 @@ interface FolderConfig {
 interface CategoryConfig {
   type: string;
   enabled: boolean;
+  order?: number;
   createSubfolders: boolean;
   detectSequences?: boolean;
   keywords?: string[];
@@ -369,16 +370,18 @@ export const organizeProject = (configJson: string, itemIdsJson?: string): Organ
       folderMap[fc.id] = getOrCreateRootFolder(fc.name);
     }
 
-    // Build category-to-folder mapping
-    const categoryFolderMap: { [key: string]: { folderId: string; config: CategoryConfig } } = {};
+    // Build category-to-folder mapping with order
+    const categoryFolderMap: { [key: string]: { folderId: string; config: CategoryConfig; order: number } } = {};
 
     for (let i = 0; i < config.folders.length; i++) {
       const folder = config.folders[i];
       const cats = folder.categories || [];
-      for (let j = 0; j < cats.length; j++) {
-        const cat = cats[j];
+      // Sort categories by their order property
+      const sortedCats = cats.slice().sort(function (a: CategoryConfig, b: CategoryConfig) { return (a.order || 0) - (b.order || 0); });
+      for (let j = 0; j < sortedCats.length; j++) {
+        const cat = sortedCats[j];
         if (cat.enabled) {
-          categoryFolderMap[cat.type] = { folderId: folder.id, config: cat };
+          categoryFolderMap[cat.type] = { folderId: folder.id, config: cat, order: j + 1 }; // 01, 02, 03...
         }
       }
     }
@@ -442,15 +445,17 @@ export const organizeProject = (configJson: string, itemIdsJson?: string): Organ
             if (mapping) {
               targetFolderId = mapping.folderId;
 
-              // Always create category subfolder (e.g., Comps, Footage, Images)
-              targetSubfolder = categoryType;
+              // Create numbered category subfolder (e.g., 01_Comps, 02_Footage)
+              const orderPrefix = (mapping.order < 10 ? "0" : "") + mapping.order;
+              const numberedCategoryName = orderPrefix + "_" + categoryType;
+              targetSubfolder = numberedCategoryName;
 
               // If createSubfolders is enabled, create extension-based sub-subfolder
               if (mapping.config.createSubfolders && item instanceof FootageItem) {
                 const ext = getFileExtension(item.name).toUpperCase();
                 if (ext) {
-                  // Will create nested: Footage/_MP4
-                  targetSubfolder = categoryType + "/_" + ext;
+                  // Will create nested: 02_Footage/_MP4
+                  targetSubfolder = numberedCategoryName + "/_" + ext;
                 }
               }
             }
