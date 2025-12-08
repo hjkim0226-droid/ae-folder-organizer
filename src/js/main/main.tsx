@@ -844,6 +844,12 @@ export const App = () => {
   const [isDraggingExternal, setIsDraggingExternal] = useState(false);
   const [showExceptions, setShowExceptions] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showBatchRename, setShowBatchRename] = useState(false);
+  const [renameItems, setRenameItems] = useState<{ id: number; name: string; type: string }[]>([]);
+  const [renamePrefix, setRenamePrefix] = useState("");
+  const [renameSuffix, setRenameSuffix] = useState("");
+  const [renameFind, setRenameFind] = useState("");
+  const [renameReplace, setRenameReplace] = useState("");
 
   useEffect(() => {
     if (window.cep) {
@@ -1183,6 +1189,117 @@ export const App = () => {
           )}
         </section>
 
+        {/* Batch Rename Section */}
+        <section className="batch-rename-section">
+          <h2 onClick={() => setShowBatchRename(!showBatchRename)}>
+            {showBatchRename ? "▼" : "▶"} 🔤 Batch Rename
+          </h2>
+          {showBatchRename && (
+            <div className="batch-rename-content">
+              <button
+                className="btn-get-selection"
+                onClick={async () => {
+                  try {
+                    const items = await evalTS("getSelectedItems");
+                    setRenameItems(items || []);
+                  } catch (e) {
+                    console.error("Failed to get selected items:", e);
+                  }
+                }}
+              >
+                📂 Get Selected Items ({renameItems.length})
+              </button>
+
+              {renameItems.length > 0 && (
+                <>
+                  <div className="rename-options">
+                    <div className="rename-row">
+                      <label>Prefix:</label>
+                      <input
+                        type="text"
+                        value={renamePrefix}
+                        onChange={(e) => setRenamePrefix(e.target.value)}
+                        placeholder="vfx_"
+                      />
+                    </div>
+                    <div className="rename-row">
+                      <label>Suffix:</label>
+                      <input
+                        type="text"
+                        value={renameSuffix}
+                        onChange={(e) => setRenameSuffix(e.target.value)}
+                        placeholder="_v02"
+                      />
+                    </div>
+                    <div className="rename-row">
+                      <label>Find:</label>
+                      <input
+                        type="text"
+                        value={renameFind}
+                        onChange={(e) => setRenameFind(e.target.value)}
+                        placeholder="old"
+                      />
+                    </div>
+                    <div className="rename-row">
+                      <label>Replace:</label>
+                      <input
+                        type="text"
+                        value={renameReplace}
+                        onChange={(e) => setRenameReplace(e.target.value)}
+                        placeholder="new"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="rename-preview">
+                    <h4>Preview ({renameItems.length} items)</h4>
+                    <div className="preview-list">
+                      {renameItems.slice(0, 10).map((item) => {
+                        let newName = item.name;
+                        if (renameFind) newName = newName.split(renameFind).join(renameReplace);
+                        newName = renamePrefix + newName + renameSuffix;
+                        return (
+                          <div key={item.id} className="preview-item">
+                            <span className="old-name">{item.name}</span>
+                            <span className="arrow">→</span>
+                            <span className="new-name">{newName}</span>
+                          </div>
+                        );
+                      })}
+                      {renameItems.length > 10 && <div className="preview-more">...and {renameItems.length - 10} more</div>}
+                    </div>
+                  </div>
+
+                  <button
+                    className="btn-apply-rename"
+                    onClick={async () => {
+                      const requests = renameItems.map((item) => {
+                        let newName = item.name;
+                        if (renameFind) newName = newName.split(renameFind).join(renameReplace);
+                        newName = renamePrefix + newName + renameSuffix;
+                        return { id: item.id, newName };
+                      });
+                      try {
+                        const result = await evalTS("batchRenameItems", requests);
+                        if (result.success) {
+                          alert(`Renamed ${result.renamed} items! (Ctrl+Z to undo)`);
+                          setRenameItems([]);
+                        } else {
+                          alert(`Renamed ${result.renamed} items with errors: ${result.errors.join(", ")}`);
+                        }
+                      } catch (e) {
+                        console.error("Rename failed:", e);
+                      }
+                    }}
+                  >
+                    ✓ Apply Rename
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+        </section>
+
         {/* Settings Section */}
         <section className="settings-section">
           <h2 onClick={() => setShowSettings(!showSettings)}>
@@ -1266,29 +1383,31 @@ export const App = () => {
           </button>
         </section>
 
-        {result && (
-          <section className={`result-section ${result.success ? "success" : "error"}`}>
-            {result.success ? (
-              <>
-                <h3>✅ Organization Complete!</h3>
-                <div className="result-stats">
-                  {result.movedItems.map((item) => (
-                    <p key={item.folderId}>
-                      📁 {item.folderName}: <strong>{item.count}</strong>
-                    </p>
-                  ))}
-                  <p>⏭️ Skipped: <strong>{result.skipped}</strong></p>
-                </div>
-              </>
-            ) : (
-              <>
-                <h3>❌ Error</h3>
-                <p>{result.error}</p>
-              </>
-            )}
-          </section>
-        )}
-      </div>
-    </div>
+        {
+          result && (
+            <section className={`result-section ${result.success ? "success" : "error"}`}>
+              {result.success ? (
+                <>
+                  <h3>✅ Organization Complete!</h3>
+                  <div className="result-stats">
+                    {result.movedItems.map((item) => (
+                      <p key={item.folderId}>
+                        📁 {item.folderName}: <strong>{item.count}</strong>
+                      </p>
+                    ))}
+                    <p>⏭️ Skipped: <strong>{result.skipped}</strong></p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <h3>❌ Error</h3>
+                  <p>{result.error}</p>
+                </>
+              )}
+            </section>
+          )
+        }
+      </div >
+    </div >
   );
 };

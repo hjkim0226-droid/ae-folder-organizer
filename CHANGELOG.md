@@ -1,5 +1,13 @@
 # Changelog
 
+## [v1.10.0] - 2025-12-09
+### Added
+- **Batch Rename** - New tool for renaming multiple selected items at once
+  - Prefix/Suffix addition
+  - Find and Replace
+  - Real-time preview of changes
+  - Undo support via After Effects (Ctrl+Z)
+
 ## [v1.1.5] - 2025-12-08
 ### Fixed
 - **Category subfolders now created** - Comps, Footage, Images, Audio subfolders are created inside parent folder

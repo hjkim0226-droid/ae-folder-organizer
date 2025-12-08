@@ -363,6 +363,81 @@ export const getSelectedCompNames = (): string[] => {
 };
 
 /**
+ * Get all selected items with their info for batch rename
+ */
+interface ItemInfo {
+  id: number;
+  name: string;
+  type: string;
+}
+
+export const getSelectedItems = (): ItemInfo[] => {
+  const project = app.project;
+  const items: ItemInfo[] = [];
+  const selection = project.selection;
+
+  for (let i = 0; i < selection.length; i++) {
+    const item = selection[i];
+    if (!(item instanceof FolderItem)) {
+      let itemType = "unknown";
+      if (item instanceof CompItem) itemType = "comp";
+      else if (item instanceof FootageItem) itemType = "footage";
+
+      items.push({
+        id: item.id,
+        name: item.name,
+        type: itemType,
+      });
+    }
+  }
+
+  return items;
+};
+
+/**
+ * Batch rename items
+ */
+interface RenameRequest {
+  id: number;
+  newName: string;
+}
+
+interface RenameResult {
+  success: boolean;
+  renamed: number;
+  errors: string[];
+}
+
+export const batchRenameItems = (requests: RenameRequest[]): RenameResult => {
+  const project = app.project;
+  const result: RenameResult = {
+    success: true,
+    renamed: 0,
+    errors: [],
+  };
+
+  app.beginUndoGroup("Batch Rename Items");
+
+  for (let i = 0; i < requests.length; i++) {
+    const req = requests[i];
+    try {
+      const item = project.itemByID(req.id);
+      if (item && !(item instanceof FolderItem)) {
+        item.name = req.newName;
+        result.renamed++;
+      }
+    } catch (e) {
+      result.errors.push("Failed to rename item ID " + req.id);
+      result.success = false;
+    }
+  }
+
+  app.endUndoGroup();
+
+  return result;
+};
+
+/**
  * Get project statistics
  */
 export const getProjectStats = (): ProjectStats => {
