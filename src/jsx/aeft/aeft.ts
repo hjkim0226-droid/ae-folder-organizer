@@ -1,24 +1,45 @@
 /**
- * AE Folder Organizer - ExtendScript Core Logic
- * Organizes After Effects project panel items into 01_Render and 02_Data folders
+ * AE Folder Organizer - ExtendScript Core Logic v1.1
+ * Config-based folder organization with sequence detection
  */
 
 // Re-export utility
 export { dispatchTS } from "../utils/utils";
 
-// ===== Types =====
+// ===== Types (Shared with JS) =====
+
+interface FolderConfig {
+  id: string;
+  name: string;
+  order: number;
+  isRenderFolder: boolean;
+  renderKeywords?: string[];
+  categories?: CategoryConfig[];
+}
+
+interface CategoryConfig {
+  type: string;
+  enabled: boolean;
+  createSubfolders: boolean;
+  detectSequences?: boolean;
+}
+
+interface ExceptionRule {
+  id: string;
+  type: "nameContains" | "extension";
+  pattern: string;
+  targetFolderId: string;
+  targetCategory?: string;
+}
+
 interface OrganizerConfig {
-  renderFolderName: string;
-  dataFolderName: string;
-  renderKeywords: string[];
-  organizeSubfolders: boolean;
-  hideSystemItems: boolean;
+  folders: FolderConfig[];
+  exceptions: ExceptionRule[];
 }
 
 interface OrganizeResult {
   success: boolean;
-  movedToRender: number;
-  movedToData: number;
+  movedItems: { folderId: string; folderName: string; count: number }[];
   skipped: number;
   error?: string;
 }
@@ -27,59 +48,29 @@ interface ProjectStats {
   totalItems: number;
   comps: number;
   footage: number;
-  folders: number;
+  images: number;
+  audio: number;
+  sequences: number;
   solids: number;
+  folders: number;
 }
 
-// ===== Default Config =====
-const DEFAULT_CONFIG: OrganizerConfig = {
-  renderFolderName: "01_Render",
-  dataFolderName: "02_Data",
-  renderKeywords: ["_render", "_final", "_output", "_export", "RENDER_", "[RENDER]"],
-  organizeSubfolders: true,
-  hideSystemItems: true,
-};
+// ===== Extension Categories =====
+
+const VIDEO_EXTENSIONS = ["mp4", "mov", "avi", "mkv", "webm", "m4v", "wmv", "flv", "mxf"];
+const IMAGE_EXTENSIONS = ["jpg", "jpeg", "png", "psd", "tif", "tiff", "gif", "bmp", "ai", "eps", "svg"];
+const SEQUENCE_EXTENSIONS = ["exr", "dpx", "tga", "cin", "hdr"];
+const AUDIO_EXTENSIONS = ["mp3", "wav", "aac", "m4a", "aif", "aiff", "ogg", "flac"];
 
 // ===== Helper Functions =====
-
-/**
- * Check if item name contains any render keywords
- */
-const isRenderComp = (item: Item, keywords: string[]): boolean => {
-  if (!(item instanceof CompItem)) return false;
-
-  const name = item.name.toLowerCase();
-  for (const keyword of keywords) {
-    if (name.indexOf(keyword.toLowerCase()) !== -1) {
-      return true;
-    }
-  }
-  return false;
-};
-
-/**
- * Check if item is a Solid or other system item
- */
-const isSystemItem = (item: Item): boolean => {
-  if (!(item instanceof FootageItem)) return false;
-
-  const source = item.mainSource;
-  if (source instanceof SolidSource) return true;
-
-  // Check for null objects by name pattern
-  const name = item.name.toLowerCase();
-  if (name.indexOf("null") !== -1 || name.indexOf("controller") !== -1) {
-    return true;
-  }
-
-  return false;
-};
 
 /**
  * Get file extension from item name
  */
 const getFileExtension = (name: string): string => {
-  const parts = name.split(".");
+  // Handle sequence patterns like "name.[####].exr" or "name.0001.exr"
+  const cleanName = name.replace(/\[\#+\]/g, "0000").replace(/\.\d{4,}\./, ".");
+  const parts = cleanName.split(".");
   if (parts.length > 1) {
     return parts[parts.length - 1].toLowerCase();
   }
@@ -87,32 +78,96 @@ const getFileExtension = (name: string): string => {
 };
 
 /**
- * Determine subfolder category for footage items
+ * Check if item is an image sequence
  */
-const getFootageCategory = (item: FootageItem): string => {
-  const ext = getFileExtension(item.name);
+const isSequence = (item: FootageItem): boolean => {
+  if (!(item.mainSource instanceof FileSource)) return false;
 
-  // Video
-  if (["mp4", "mov", "avi", "mkv", "webm", "m4v", "wmv", "flv"].indexOf(ext) !== -1) {
-    return "_Footage";
+  const name = item.name;
+
+  // Pattern 1: name_[####].ext or name[####].ext
+  if (/\[\#+\]\.\w+$/.test(name)) return true;
+
+  // Pattern 2: name.0001.ext (4+ digits)
+  if (/\.\d{4,}\.\w+$/.test(name)) return true;
+
+  // Pattern 3: name_0001.ext (4+ digits with underscore)
+  if (/_\d{4,}\.\w+$/.test(name)) return true;
+
+  // Check extension - common sequence formats
+  const ext = getFileExtension(name);
+  if (SEQUENCE_EXTENSIONS.indexOf(ext) !== -1) {
+    // If it's a sequence extension and has multiple frames duration
+    if (item.hasVideo && !item.hasAudio) {
+      if (item.duration > item.frameDuration * 2) return true;
+    }
   }
 
-  // Images
-  if (["jpg", "jpeg", "png", "psd", "tif", "tiff", "gif", "bmp", "ai", "eps", "svg", "exr"].indexOf(ext) !== -1) {
-    return "_Images";
+  return false;
+};
+
+/**
+ * Check if item is a Solid or Null
+ */
+const isSolid = (item: Item): boolean => {
+  if (!(item instanceof FootageItem)) return false;
+
+  const source = item.mainSource;
+  if (source instanceof SolidSource) return true;
+
+  // Check for null objects by name pattern
+  const name = item.name.toLowerCase();
+  if (name.indexOf("null") !== -1) return true;
+
+  return false;
+};
+
+/**
+ * Check if item name contains render keywords
+ */
+const isRenderComp = (item: Item, keywords: string[]): boolean => {
+  if (!(item instanceof CompItem)) return false;
+
+  const name = item.name.toLowerCase();
+  for (let i = 0; i < keywords.length; i++) {
+    if (name.indexOf(keywords[i].toLowerCase()) !== -1) {
+      return true;
+    }
+  }
+  return false;
+};
+
+/**
+ * Determine item category type
+ */
+const getItemCategory = (item: Item, detectSequences: boolean): string | null => {
+  if (item instanceof CompItem) return "Comps";
+  if (item instanceof FolderItem) return null;
+
+  if (item instanceof FootageItem) {
+    // Check for Solid first
+    if (isSolid(item)) return "Solids";
+
+    // Check for Sequence
+    if (detectSequences && isSequence(item)) return "Sequences";
+
+    const ext = getFileExtension(item.name);
+
+    // Video
+    if (VIDEO_EXTENSIONS.indexOf(ext) !== -1) return "Footage";
+
+    // Images
+    if (IMAGE_EXTENSIONS.indexOf(ext) !== -1 || SEQUENCE_EXTENSIONS.indexOf(ext) !== -1) {
+      return "Images";
+    }
+
+    // Audio
+    if (AUDIO_EXTENSIONS.indexOf(ext) !== -1) return "Audio";
+
+    return "Footage"; // Default to Footage for unknown
   }
 
-  // Audio
-  if (["mp3", "wav", "aac", "m4a", "aif", "aiff", "ogg", "flac"].indexOf(ext) !== -1) {
-    return "_Audio";
-  }
-
-  // Data files
-  if (["json", "csv", "xml", "txt", "xlsx", "xls"].indexOf(ext) !== -1) {
-    return "_Data";
-  }
-
-  return "_Misc";
+  return null;
 };
 
 /**
@@ -134,10 +189,9 @@ const getOrCreateRootFolder = (name: string): FolderItem => {
 };
 
 /**
- * Find or create a subfolder inside a parent folder
+ * Find or create a subfolder
  */
 const getOrCreateSubfolder = (name: string, parent: FolderItem): FolderItem => {
-  // Search for existing subfolder
   for (let i = 1; i <= parent.numItems; i++) {
     const item = parent.item(i);
     if (item instanceof FolderItem && item.name === name) {
@@ -145,21 +199,20 @@ const getOrCreateSubfolder = (name: string, parent: FolderItem): FolderItem => {
     }
   }
 
-  // Create new subfolder
   const folder = app.project.items.addFolder(name);
   folder.parentFolder = parent;
   return folder;
 };
 
 /**
- * Check if item is already in the target folder structure
+ * Check if item is already in any organized folder
  */
-const isInFolder = (item: Item, folderName: string): boolean => {
+const isInOrganizedFolder = (item: Item, folderNames: string[]): boolean => {
   let current = item.parentFolder;
 
   while (current !== null && current !== app.project.rootFolder) {
-    if (current.name === folderName) {
-      return true;
+    for (let i = 0; i < folderNames.length; i++) {
+      if (current.name === folderNames[i]) return true;
     }
     current = current.parentFolder;
   }
@@ -168,10 +221,20 @@ const isInFolder = (item: Item, folderName: string): boolean => {
 };
 
 /**
- * Check if item is at root level (not in any folder)
+ * Check if exception rule matches item
  */
-const isAtRoot = (item: Item): boolean => {
-  return item.parentFolder === app.project.rootFolder;
+const matchesException = (item: Item, exception: ExceptionRule): boolean => {
+  const name = item.name.toLowerCase();
+  const pattern = exception.pattern.toLowerCase();
+
+  if (exception.type === "nameContains") {
+    return name.indexOf(pattern) !== -1;
+  } else if (exception.type === "extension") {
+    const ext = getFileExtension(item.name);
+    return ext === pattern.replace(".", "");
+  }
+
+  return false;
 };
 
 // ===== Main Export Functions =====
@@ -185,8 +248,11 @@ export const getProjectStats = (): ProjectStats => {
     totalItems: 0,
     comps: 0,
     footage: 0,
-    folders: 0,
+    images: 0,
+    audio: 0,
+    sequences: 0,
     solids: 0,
+    folders: 0,
   };
 
   for (let i = 1; i <= project.numItems; i++) {
@@ -198,10 +264,19 @@ export const getProjectStats = (): ProjectStats => {
     } else if (item instanceof FolderItem) {
       stats.folders++;
     } else if (item instanceof FootageItem) {
-      if (item.mainSource instanceof SolidSource) {
+      if (isSolid(item)) {
         stats.solids++;
+      } else if (isSequence(item)) {
+        stats.sequences++;
       } else {
-        stats.footage++;
+        const ext = getFileExtension(item.name);
+        if (AUDIO_EXTENSIONS.indexOf(ext) !== -1) {
+          stats.audio++;
+        } else if (IMAGE_EXTENSIONS.indexOf(ext) !== -1) {
+          stats.images++;
+        } else {
+          stats.footage++;
+        }
       }
     }
   }
@@ -210,149 +285,167 @@ export const getProjectStats = (): ProjectStats => {
 };
 
 /**
- * Preview what would be organized (dry run)
+ * Main organize function with config
  */
-export const previewOrganize = (configJson: string): string => {
-  const config: OrganizerConfig = configJson ? JSON.parse(configJson) : DEFAULT_CONFIG;
-
-  const preview = {
-    toRender: [] as string[],
-    toData: [] as string[],
-    toSystem: [] as string[],
-    skipped: [] as string[],
-  };
-
-  const project = app.project;
-
-  for (let i = 1; i <= project.numItems; i++) {
-    const item = project.item(i);
-
-    // Skip folders
-    if (item instanceof FolderItem) {
-      continue;
-    }
-
-    // Skip items already in organized folders
-    if (isInFolder(item, config.renderFolderName) || isInFolder(item, config.dataFolderName)) {
-      preview.skipped.push(item.name);
-      continue;
-    }
-
-    // Classify item
-    if (isRenderComp(item, config.renderKeywords)) {
-      preview.toRender.push(item.name);
-    } else if (config.hideSystemItems && isSystemItem(item)) {
-      preview.toSystem.push(item.name);
-    } else {
-      preview.toData.push(item.name);
-    }
-  }
-
-  return JSON.stringify(preview);
-};
-
-/**
- * Main organize function
- */
-export const organizeProject = (configJson?: string): OrganizeResult => {
-  const config: OrganizerConfig = configJson ? JSON.parse(configJson) : DEFAULT_CONFIG;
+export const organizeProject = (configJson: string, itemIdsJson?: string): OrganizeResult => {
+  const config: OrganizerConfig = JSON.parse(configJson);
+  const itemIds: number[] | null = itemIdsJson ? JSON.parse(itemIdsJson) : null;
 
   const result: OrganizeResult = {
     success: true,
-    movedToRender: 0,
-    movedToData: 0,
+    movedItems: [],
     skipped: 0,
   };
+
+  // Initialize move counts
+  const moveCounts: { [key: string]: number } = {};
+  for (let i = 0; i < config.folders.length; i++) {
+    moveCounts[config.folders[i].id] = 0;
+  }
 
   try {
     app.beginUndoGroup("AE Folder Organizer");
 
     const project = app.project;
+    const folderNames = config.folders.map(function (f) { return f.name; });
 
-    // Create main folders
-    const renderFolder = getOrCreateRootFolder(config.renderFolderName);
-    const dataFolder = getOrCreateRootFolder(config.dataFolderName);
+    // Create all folders first (sorted by order)
+    const sortedFolders = config.folders.slice().sort(function (a, b) { return a.order - b.order; });
+    const folderMap: { [key: string]: FolderItem } = {};
 
-    // Create Data subfolders if enabled
-    let compsFolder: FolderItem | null = null;
-    let footageFolder: FolderItem | null = null;
-    let imagesFolder: FolderItem | null = null;
-    let audioFolder: FolderItem | null = null;
-    let systemFolder: FolderItem | null = null;
-    let miscFolder: FolderItem | null = null;
-
-    if (config.organizeSubfolders) {
-      compsFolder = getOrCreateSubfolder("_Comps", dataFolder);
-      footageFolder = getOrCreateSubfolder("_Footage", dataFolder);
-      imagesFolder = getOrCreateSubfolder("_Images", dataFolder);
-      audioFolder = getOrCreateSubfolder("_Audio", dataFolder);
-      miscFolder = getOrCreateSubfolder("_Misc", dataFolder);
+    for (let i = 0; i < sortedFolders.length; i++) {
+      const fc = sortedFolders[i];
+      folderMap[fc.id] = getOrCreateRootFolder(fc.name);
     }
 
-    if (config.hideSystemItems) {
-      systemFolder = getOrCreateSubfolder("_System", dataFolder);
+    // Build category-to-folder mapping
+    const categoryFolderMap: { [key: string]: { folderId: string; config: CategoryConfig } } = {};
+
+    for (let i = 0; i < config.folders.length; i++) {
+      const folder = config.folders[i];
+      const cats = folder.categories || [];
+      for (let j = 0; j < cats.length; j++) {
+        const cat = cats[j];
+        if (cat.enabled) {
+          categoryFolderMap[cat.type] = { folderId: folder.id, config: cat };
+        }
+      }
     }
 
-    // Collect items to move (iterate backwards to avoid index issues)
-    const itemsToMove: { item: Item; targetFolder: FolderItem }[] = [];
+    // Collect items to process
+    const itemsToProcess: Item[] = [];
 
     for (let i = 1; i <= project.numItems; i++) {
       const item = project.item(i);
 
       // Skip folders
-      if (item instanceof FolderItem) {
-        continue;
+      if (item instanceof FolderItem) continue;
+
+      // If specific items requested, filter
+      if (itemIds !== null) {
+        if (itemIds.indexOf(item.id) === -1) continue;
       }
 
       // Skip items already in organized folders
-      if (isInFolder(item, config.renderFolderName) || isInFolder(item, config.dataFolderName)) {
+      if (isInOrganizedFolder(item, folderNames)) {
         result.skipped++;
         continue;
       }
 
-      // Determine target folder
-      let targetFolder: FolderItem;
-
-      if (isRenderComp(item, config.renderKeywords)) {
-        targetFolder = renderFolder;
-        result.movedToRender++;
-      } else if (config.hideSystemItems && isSystemItem(item) && systemFolder) {
-        targetFolder = systemFolder;
-        result.movedToData++;
-      } else if (item instanceof CompItem) {
-        targetFolder = compsFolder || dataFolder;
-        result.movedToData++;
-      } else if (item instanceof FootageItem) {
-        if (config.organizeSubfolders) {
-          const category = getFootageCategory(item);
-          switch (category) {
-            case "_Footage":
-              targetFolder = footageFolder || dataFolder;
-              break;
-            case "_Images":
-              targetFolder = imagesFolder || dataFolder;
-              break;
-            case "_Audio":
-              targetFolder = audioFolder || dataFolder;
-              break;
-            default:
-              targetFolder = miscFolder || dataFolder;
-          }
-        } else {
-          targetFolder = dataFolder;
-        }
-        result.movedToData++;
-      } else {
-        targetFolder = miscFolder || dataFolder;
-        result.movedToData++;
-      }
-
-      itemsToMove.push({ item, targetFolder });
+      itemsToProcess.push(item);
     }
 
-    // Move items
-    for (const { item, targetFolder } of itemsToMove) {
-      item.parentFolder = targetFolder;
+    // Process each item
+    for (let i = 0; i < itemsToProcess.length; i++) {
+      const item = itemsToProcess[i];
+      let targetFolderId: string | null = null;
+      let targetSubfolder: string | null = null;
+
+      // 1. Check render folders first
+      for (let j = 0; j < config.folders.length; j++) {
+        const folder = config.folders[j];
+        if (folder.isRenderFolder && folder.renderKeywords) {
+          if (isRenderComp(item, folder.renderKeywords)) {
+            targetFolderId = folder.id;
+            break;
+          }
+        }
+      }
+
+      // 2. If not render, categorize by type
+      if (targetFolderId === null) {
+        // Determine if we should detect sequences
+        let detectSequences = false;
+        const footageCat = categoryFolderMap["Footage"];
+        if (footageCat && footageCat.config.detectSequences) {
+          detectSequences = true;
+        }
+
+        const categoryType = getItemCategory(item, detectSequences);
+
+        if (categoryType !== null) {
+          // Handle "Sequences" as a subfolder of Footage/Images
+          if (categoryType === "Sequences") {
+            const footageMapping = categoryFolderMap["Footage"];
+            if (footageMapping) {
+              targetFolderId = footageMapping.folderId;
+              if (footageMapping.config.createSubfolders) {
+                targetSubfolder = "_Sequences";
+              }
+            }
+          } else {
+            const mapping = categoryFolderMap[categoryType];
+            if (mapping) {
+              targetFolderId = mapping.folderId;
+
+              // Create subfolders by extension if enabled
+              if (mapping.config.createSubfolders && item instanceof FootageItem) {
+                const ext = getFileExtension(item.name).toUpperCase();
+                if (ext) {
+                  targetSubfolder = "_" + ext;
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // 3. Apply exception rules (last priority, can override)
+      for (let j = 0; j < config.exceptions.length; j++) {
+        const ex = config.exceptions[j];
+        if (matchesException(item, ex)) {
+          targetFolderId = ex.targetFolderId;
+          targetSubfolder = null; // Reset subfolder for exceptions
+          break;
+        }
+      }
+
+      // Move item if target found
+      if (targetFolderId !== null && folderMap[targetFolderId]) {
+        let targetFolder = folderMap[targetFolderId];
+
+        // Create subfolder if needed
+        if (targetSubfolder !== null) {
+          targetFolder = getOrCreateSubfolder(targetSubfolder, targetFolder);
+        }
+
+        item.parentFolder = targetFolder;
+        moveCounts[targetFolderId] = (moveCounts[targetFolderId] || 0) + 1;
+      } else {
+        result.skipped++;
+      }
+    }
+
+    // Build result
+    for (let i = 0; i < config.folders.length; i++) {
+      const folder = config.folders[i];
+      if (moveCounts[folder.id] > 0) {
+        result.movedItems.push({
+          folderId: folder.id,
+          folderName: folder.name,
+          count: moveCounts[folder.id],
+        });
+      }
     }
 
     app.endUndoGroup();
@@ -360,15 +453,48 @@ export const organizeProject = (configJson?: string): OrganizeResult => {
   } catch (e: any) {
     result.success = false;
     result.error = e.toString();
-    app.endUndoGroup();
+    try { app.endUndoGroup(); } catch (x) { }
   }
 
   return result;
 };
 
 /**
- * Get current configuration (for UI initialization)
+ * Get default configuration
  */
 export const getDefaultConfig = (): OrganizerConfig => {
-  return DEFAULT_CONFIG;
+  return {
+    folders: [
+      {
+        id: "render",
+        name: "00_Render",
+        order: 0,
+        isRenderFolder: true,
+        renderKeywords: ["_render", "_final", "_output", "_export", "RENDER_", "[RENDER]"],
+        categories: [],
+      },
+      {
+        id: "source",
+        name: "01_Source",
+        order: 1,
+        isRenderFolder: false,
+        categories: [
+          { type: "Footage", enabled: true, createSubfolders: false, detectSequences: true },
+          { type: "Images", enabled: true, createSubfolders: false, detectSequences: true },
+          { type: "Audio", enabled: true, createSubfolders: false },
+          { type: "Comps", enabled: true, createSubfolders: false },
+        ],
+      },
+      {
+        id: "system",
+        name: "99_System",
+        order: 99,
+        isRenderFolder: false,
+        categories: [
+          { type: "Solids", enabled: true, createSubfolders: false },
+        ],
+      },
+    ],
+    exceptions: [],
+  };
 };
