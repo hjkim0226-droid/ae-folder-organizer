@@ -418,6 +418,11 @@
   color: #e57373;
 }
 
+.category-item.drag-over {
+  background: rgba(79, 195, 247, 0.2);
+  border: 1px dashed #4fc3f7;
+}
+
 /* Add Category Buttons */
 .add-category {
   display: flex;
@@ -487,6 +492,43 @@
 
 .exception-item button.delete:hover {
   color: #e57373;
+}
+
+/* Settings Section */
+.settings-section {
+  margin-bottom: 16px;
+}
+
+.settings-section h2 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #888;
+  margin-bottom: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.settings-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 6px;
+}
+
+.setting-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 11px;
+  color: #ccc;
+}
+
+.setting-item input {
+  accent-color: #4fc3f7;
 }
 
 /* Buttons */

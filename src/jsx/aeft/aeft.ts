@@ -36,6 +36,9 @@ interface ExceptionRule {
 interface OrganizerConfig {
   folders: FolderConfig[];
   exceptions: ExceptionRule[];
+  settings?: {
+    deleteEmptyFolders: boolean;
+  };
 }
 
 interface OrganizeResult {
@@ -236,6 +239,36 @@ const matchesException = (item: Item, exception: ExceptionRule): boolean => {
   }
 
   return false;
+};
+
+/**
+ * Delete empty folders recursively
+ */
+const deleteEmptyFolders = (): number => {
+  let deletedCount = 0;
+  let foundEmpty = true;
+
+  // Keep iterating until no more empty folders found
+  while (foundEmpty) {
+    foundEmpty = false;
+    const project = app.project;
+
+    // Iterate backwards to safely delete
+    for (let i = project.numItems; i >= 1; i--) {
+      const item = project.item(i);
+
+      if (item instanceof FolderItem) {
+        // Check if folder is empty
+        if (item.numItems === 0) {
+          item.remove();
+          deletedCount++;
+          foundEmpty = true;
+        }
+      }
+    }
+  }
+
+  return deletedCount;
 };
 
 // ===== Main Export Functions =====
@@ -447,6 +480,11 @@ export const organizeProject = (configJson: string, itemIdsJson?: string): Organ
           count: moveCounts[folder.id],
         });
       }
+    }
+
+    // Delete empty folders if enabled
+    if (config.settings?.deleteEmptyFolders !== false) {
+      deleteEmptyFolders();
     }
 
     app.endUndoGroup();
