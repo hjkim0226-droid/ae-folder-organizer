@@ -521,6 +521,12 @@
   margin-left: 4px;
 }
 
+.duplicate-warning {
+  font-size: 10px;
+  margin-left: 4px;
+  cursor: help;
+}
+
 /* Category Keywords with Tags */
 .category-keywords {
   padding: 8px 12px;
@@ -699,6 +705,46 @@
   padding: 8px 12px;
   background: rgba(255, 255, 255, 0.02);
   border-radius: 6px;
+}
+
+.config-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.btn-export,
+.btn-import {
+  flex: 1;
+  padding: 6px 8px;
+  font-size: 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-export {
+  background: rgba(76, 175, 80, 0.15);
+  border: 1px solid rgba(76, 175, 80, 0.3);
+  color: #81c784;
+}
+
+.btn-export:hover {
+  background: rgba(76, 175, 80, 0.3);
+  border-color: #81c784;
+}
+
+.btn-import {
+  background: rgba(79, 195, 247, 0.15);
+  border: 1px solid rgba(79, 195, 247, 0.3);
+  color: #4fc3f7;
+}
+
+.btn-import:hover {
+  background: rgba(79, 195, 247, 0.3);
+  border-color: #4fc3f7;
 }
 
 .setting-item {
@@ -1025,6 +1071,18 @@
   color: #888;
   cursor: pointer;
   width: 12px;
+}
+
+.subcat-drag-handle {
+  font-size: 10px;
+  color: #555;
+  cursor: grab;
+  padding: 0 2px;
+}
+
+.subcategory-item.drag-over {
+  background: rgba(255, 193, 7, 0.2);
+  border-radius: 4px;
 }
 
 .subcat-tag-count {

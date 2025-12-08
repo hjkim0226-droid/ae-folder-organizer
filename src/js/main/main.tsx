@@ -139,6 +139,35 @@ const getAssignedCategories = (folders: FolderConfig[]): Map<CategoryType, strin
   return assigned;
 };
 
+// Find duplicate keywords across categories in same folder
+const findDuplicateKeywords = (categories: CategoryConfig[] | undefined): Map<CategoryType, string[]> => {
+  const duplicates = new Map<CategoryType, string[]>();
+  if (!categories) return duplicates;
+
+  const keywordMap = new Map<string, CategoryType[]>();
+
+  categories.forEach((cat) => {
+    cat.keywords?.forEach((kw) => {
+      const lower = kw.toLowerCase();
+      const existing = keywordMap.get(lower) || [];
+      existing.push(cat.type);
+      keywordMap.set(lower, existing);
+    });
+  });
+
+  keywordMap.forEach((types, kw) => {
+    if (types.length > 1) {
+      types.forEach((type) => {
+        const dups = duplicates.get(type) || [];
+        if (!dups.includes(kw)) dups.push(kw);
+        duplicates.set(type, dups);
+      });
+    }
+  });
+
+  return duplicates;
+};
+
 const getDisplayFolderName = (folder: FolderConfig, index: number): string => {
   if (folder.id === "system") {
     return `99_${folder.name}`;
@@ -152,10 +181,22 @@ const SubcategoryItem = ({
   subcat,
   onUpdate,
   onDelete,
+  isDragOver,
+  onDragStart,
+  onDragOver,
+  onDragLeave,
+  onDrop,
+  onDragEnd,
 }: {
   subcat: SubcategoryConfig;
   onUpdate: (updates: Partial<SubcategoryConfig>) => void;
   onDelete: () => void;
+  isDragOver: boolean;
+  onDragStart: () => void;
+  onDragOver: (e: React.DragEvent) => void;
+  onDragLeave: () => void;
+  onDrop: () => void;
+  onDragEnd: () => void;
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const hasFilters = (subcat.filterType === "extension" && subcat.extensions && subcat.extensions.length > 0) ||
@@ -185,7 +226,16 @@ const SubcategoryItem = ({
 
   return (
     <div className="subcategory-item-wrapper">
-      <div className="subcategory-item">
+      <div
+        className={`subcategory-item ${isDragOver ? "drag-over" : ""}`}
+        draggable
+        onDragStart={(e) => { e.stopPropagation(); onDragStart(); }}
+        onDragOver={(e) => { e.stopPropagation(); onDragOver(e); }}
+        onDragLeave={onDragLeave}
+        onDrop={(e) => { e.stopPropagation(); e.preventDefault(); onDrop(); }}
+        onDragEnd={onDragEnd}
+      >
+        <span className="subcat-drag-handle">⋮⋮</span>
         <span
           className="subcat-expand"
           onClick={() => setIsExpanded(!isExpanded)}
@@ -264,6 +314,7 @@ const SubcategoryItem = ({
 // ===== Draggable Category Component =====
 const DraggableCategory = ({
   category,
+  duplicateKeywords,
   onDelete,
   onToggleSubfolders,
   onUpdateKeywords,
@@ -272,6 +323,7 @@ const DraggableCategory = ({
   dragHandlers,
 }: {
   category: CategoryConfig;
+  duplicateKeywords?: string[];
   onDelete: () => void;
   onToggleSubfolders: () => void;
   onUpdateKeywords: (keywords: string[]) => void;
@@ -286,6 +338,8 @@ const DraggableCategory = ({
   };
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [draggedSubcat, setDraggedSubcat] = useState<string | null>(null);
+  const [dragOverSubcat, setDragOverSubcat] = useState<string | null>(null);
   const hasKeywords = category.keywords && category.keywords.length > 0;
   const hasSubcategories = category.subcategories && category.subcategories.length > 0;
 
@@ -311,6 +365,20 @@ const DraggableCategory = ({
   const deleteSubcategory = (id: string) => {
     const subcats = category.subcategories || [];
     onUpdateSubcategories(subcats.filter((s) => s.id !== id));
+  };
+
+  const reorderSubcategory = (draggedId: string, targetId: string) => {
+    if (draggedId === targetId) return;
+    const subcats = category.subcategories || [];
+    const draggedIdx = subcats.findIndex((s) => s.id === draggedId);
+    const targetIdx = subcats.findIndex((s) => s.id === targetId);
+    if (draggedIdx === -1 || targetIdx === -1) return;
+
+    const newSubcats = [...subcats];
+    const [removed] = newSubcats.splice(draggedIdx, 1);
+    newSubcats.splice(targetIdx, 0, removed);
+    newSubcats.forEach((s, i) => { s.order = i; });
+    onUpdateSubcategories(newSubcats);
   };
 
   return (
@@ -343,6 +411,9 @@ const DraggableCategory = ({
           {isExpanded ? "▼" : "▶"} {category.type}
           {hasKeywords && <span className="keyword-badge">🔑</span>}
           {hasSubcategories && <span className="subcategory-badge">📂{category.subcategories?.length}</span>}
+          {duplicateKeywords && duplicateKeywords.length > 0 && (
+            <span className="duplicate-warning" title={`Duplicate: ${duplicateKeywords.join(", ")}`}>⚠️</span>
+          )}
         </span>
         <label className="subfolder-option">
           <input
@@ -423,6 +494,21 @@ const DraggableCategory = ({
                       subcat={subcat}
                       onUpdate={(updates) => updateSubcategory(subcat.id, updates)}
                       onDelete={() => deleteSubcategory(subcat.id)}
+                      isDragOver={dragOverSubcat === subcat.id}
+                      onDragStart={() => setDraggedSubcat(subcat.id)}
+                      onDragOver={(e) => { e.preventDefault(); setDragOverSubcat(subcat.id); }}
+                      onDragLeave={() => setDragOverSubcat(null)}
+                      onDrop={() => {
+                        if (draggedSubcat && draggedSubcat !== subcat.id) {
+                          reorderSubcategory(draggedSubcat, subcat.id);
+                        }
+                        setDraggedSubcat(null);
+                        setDragOverSubcat(null);
+                      }}
+                      onDragEnd={() => {
+                        setDraggedSubcat(null);
+                        setDragOverSubcat(null);
+                      }}
                     />
                   ))}
               </div>
@@ -672,25 +758,29 @@ const FolderItem = ({
             <div className="category-list">
               {sortedCategories.length > 0 ? (
                 <>
-                  {sortedCategories.map((cat) => (
-                    <DraggableCategory
-                      key={cat.type}
-                      category={cat}
-                      onDelete={() => deleteCategory(cat.type)}
-                      onToggleSubfolders={() => toggleSubfolders(cat.type)}
-                      onUpdateKeywords={(keywords) => updateKeywords(cat.type, keywords)}
-                      onUpdateSubcategories={(subcats) => updateSubcategories(cat.type, subcats)}
-                      isDragOver={dragOverCategory === cat.type}
-                      dragHandlers={{
-                        ...categoryDragHandlers,
-                        onDragOver: (e) => {
-                          categoryDragHandlers.onDragOver(e);
-                          setDragOverCategory(cat.type);
-                        },
-                      }}
-                    />
-                  ))}
-                  {/* Drop zone for moving to end */}
+                  {sortedCategories.map((cat) => {
+                    const duplicates = findDuplicateKeywords(folder.categories);
+                    const catDuplicates = duplicates.get(cat.type);
+                    return (
+                      <DraggableCategory
+                        key={cat.type}
+                        category={cat}
+                        duplicateKeywords={catDuplicates}
+                        onDelete={() => deleteCategory(cat.type)}
+                        onToggleSubfolders={() => toggleSubfolders(cat.type)}
+                        onUpdateKeywords={(keywords) => updateKeywords(cat.type, keywords)}
+                        onUpdateSubcategories={(subcats) => updateSubcategories(cat.type, subcats)}
+                        isDragOver={dragOverCategory === cat.type}
+                        dragHandlers={{
+                          ...categoryDragHandlers,
+                          onDragOver: (e) => {
+                            categoryDragHandlers.onDragOver(e);
+                            setDragOverCategory(cat.type);
+                          },
+                        }}
+                      />
+                    );
+                  })}
                   {draggedCategory && (
                     <div
                       className={`drop-zone-end ${dragOverCategory === "END" ? "active" : ""}`}
@@ -1111,6 +1201,54 @@ export const App = () => {
                 />
                 <span>Delete empty folders after organizing</span>
               </label>
+              <div className="config-actions">
+                <button
+                  className="btn-export"
+                  onClick={() => {
+                    const dataStr = JSON.stringify(config, null, 2);
+                    const blob = new Blob([dataStr], { type: "application/json" });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = "ae-folder-organizer-config.json";
+                    a.click();
+                    URL.revokeObjectURL(url);
+                  }}
+                >
+                  📤 Export Config
+                </button>
+                <button
+                  className="btn-import"
+                  onClick={() => {
+                    const input = document.createElement("input");
+                    input.type = "file";
+                    input.accept = ".json";
+                    input.onchange = (e) => {
+                      const file = (e.target as HTMLInputElement).files?.[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onload = (evt) => {
+                          try {
+                            const imported = JSON.parse(evt.target?.result as string);
+                            if (imported.folders && imported.exceptions) {
+                              setConfig(imported);
+                              alert("Config imported successfully!");
+                            } else {
+                              alert("Invalid config file format");
+                            }
+                          } catch {
+                            alert("Failed to parse config file");
+                          }
+                        };
+                        reader.readAsText(file);
+                      }
+                    };
+                    input.click();
+                  }}
+                >
+                  📥 Import Config
+                </button>
+              </div>
             </div>
           )}
         </section>
