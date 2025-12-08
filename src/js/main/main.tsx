@@ -146,6 +146,104 @@ const getDisplayFolderName = (folder: FolderConfig, index: number): string => {
   return `${prefix}_${folder.name}`;
 };
 
+// ===== Subcategory Item Component =====
+const SubcategoryItem = ({
+  subcat,
+  onUpdate,
+  onDelete,
+}: {
+  subcat: SubcategoryConfig;
+  onUpdate: (updates: Partial<SubcategoryConfig>) => void;
+  onDelete: () => void;
+}) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const hasFilters = (subcat.filterType === "extension" && subcat.extensions && subcat.extensions.length > 0) ||
+    (subcat.filterType === "keyword" && subcat.keywords && subcat.keywords.length > 0);
+
+  const addTag = (value: string) => {
+    if (subcat.filterType === "extension") {
+      const newExts = [...(subcat.extensions || []), value];
+      onUpdate({ extensions: newExts });
+    } else if (subcat.filterType === "keyword") {
+      const newKws = [...(subcat.keywords || []), value];
+      onUpdate({ keywords: newKws });
+    }
+  };
+
+  const removeTag = (index: number) => {
+    if (subcat.filterType === "extension") {
+      const newExts = subcat.extensions?.filter((_, i) => i !== index) || [];
+      onUpdate({ extensions: newExts });
+    } else if (subcat.filterType === "keyword") {
+      const newKws = subcat.keywords?.filter((_, i) => i !== index) || [];
+      onUpdate({ keywords: newKws });
+    }
+  };
+
+  const tags = subcat.filterType === "extension" ? subcat.extensions : subcat.keywords;
+
+  return (
+    <div className="subcategory-item-wrapper">
+      <div className="subcategory-item">
+        <span
+          className="subcat-expand"
+          onClick={() => setIsExpanded(!isExpanded)}
+        >
+          {isExpanded ? "▼" : "▶"}
+        </span>
+        <input
+          type="text"
+          className="subcat-name"
+          value={subcat.name}
+          onChange={(e) => onUpdate({ name: e.target.value })}
+          onClick={(e) => e.stopPropagation()}
+        />
+        <select
+          className="subcat-filter"
+          value={subcat.filterType}
+          onChange={(e) => onUpdate({ filterType: e.target.value as "extension" | "keyword" | "all" })}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <option value="all">All</option>
+          <option value="extension">Ext</option>
+          <option value="keyword">Keyword</option>
+        </select>
+        {hasFilters && <span className="subcat-tag-count">🏷️{tags?.length}</span>}
+        <button className="subcat-delete" onClick={onDelete}>✕</button>
+      </div>
+
+      {isExpanded && subcat.filterType !== "all" && (
+        <div className="subcat-tags-section">
+          <div className="subcat-tags">
+            {tags?.map((tag, idx) => (
+              <span key={idx} className="subcat-tag" onClick={() => removeTag(idx)}>
+                {tag} ×
+              </span>
+            ))}
+            {(!tags || tags.length === 0) && (
+              <span className="subcat-tag warning-tag">⚠ No filters</span>
+            )}
+          </div>
+          <input
+            type="text"
+            placeholder={subcat.filterType === "extension" ? "Add extension (e.g., mp4)" : "Add keyword (e.g., vfx_)"}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                const input = e.currentTarget;
+                const value = input.value.trim();
+                if (value) {
+                  addTag(value);
+                  input.value = "";
+                }
+              }
+            }}
+          />
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ===== Draggable Category Component =====
 const DraggableCategory = ({
   category,
@@ -303,53 +401,12 @@ const DraggableCategory = ({
                 {category.subcategories
                   ?.sort((a, b) => a.order - b.order)
                   .map((subcat) => (
-                    <div key={subcat.id} className="subcategory-item">
-                      <input
-                        type="text"
-                        className="subcat-name"
-                        value={subcat.name}
-                        onChange={(e) => updateSubcategory(subcat.id, { name: e.target.value })}
-                      />
-                      <select
-                        className="subcat-filter"
-                        value={subcat.filterType}
-                        onChange={(e) => updateSubcategory(subcat.id, {
-                          filterType: e.target.value as "extension" | "keyword" | "all"
-                        })}
-                      >
-                        <option value="all">All</option>
-                        <option value="extension">Extension</option>
-                        <option value="keyword">Keyword</option>
-                      </select>
-                      {subcat.filterType === "extension" && (
-                        <input
-                          type="text"
-                          className="subcat-extensions"
-                          placeholder="mp4, mov, ..."
-                          value={subcat.extensions?.join(", ") || ""}
-                          onChange={(e) => updateSubcategory(subcat.id, {
-                            extensions: e.target.value.split(",").map((s) => s.trim()).filter(Boolean)
-                          })}
-                        />
-                      )}
-                      {subcat.filterType === "keyword" && (
-                        <input
-                          type="text"
-                          className="subcat-keywords"
-                          placeholder="vfx_, _bg, ..."
-                          value={subcat.keywords?.join(", ") || ""}
-                          onChange={(e) => updateSubcategory(subcat.id, {
-                            keywords: e.target.value.split(",").map((s) => s.trim()).filter(Boolean)
-                          })}
-                        />
-                      )}
-                      <button
-                        className="subcat-delete"
-                        onClick={() => deleteSubcategory(subcat.id)}
-                      >
-                        ✕
-                      </button>
-                    </div>
+                    <SubcategoryItem
+                      key={subcat.id}
+                      subcat={subcat}
+                      onUpdate={(updates) => updateSubcategory(subcat.id, updates)}
+                      onDelete={() => deleteSubcategory(subcat.id)}
+                    />
                   ))}
               </div>
             ) : (
