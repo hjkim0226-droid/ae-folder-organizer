@@ -14,6 +14,7 @@ interface FolderConfig {
   order: number;
   isRenderFolder: boolean;
   renderKeywords?: string[];
+  skipOrganization?: boolean;  // Skip further organization for items in this folder
   categories?: CategoryConfig[];
 }
 

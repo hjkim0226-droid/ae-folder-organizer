@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { subscribeBackgroundColor, evalTS } from "../lib/utils/bolt";
 import "./main.scss";
 
@@ -6,16 +6,18 @@ import "./main.scss";
 
 interface FolderConfig {
   id: string;
-  name: string;
+  name: string;           // Base name without number prefix (e.g., "Render")
   order: number;
   isRenderFolder: boolean;
   renderKeywords?: string[];
+  skipOrganization?: boolean;  // Items in this folder skip further organization
   categories?: CategoryConfig[];
 }
 
 interface CategoryConfig {
   type: CategoryType;
   enabled: boolean;
+  order: number;          // For drag-drop ordering within folder
   createSubfolders: boolean;
   detectSequences?: boolean;
 }
@@ -32,6 +34,7 @@ interface ExceptionRule {
 interface OrganizerConfig {
   folders: FolderConfig[];
   exceptions: ExceptionRule[];
+  renderCompIds: number[];  // IDs of comps designated as render comps
 }
 
 interface OrganizeResult {
@@ -52,47 +55,55 @@ interface ProjectStats {
   folders: number;
 }
 
-// ===== Default Config =====
+// ===== Config Version =====
+const CONFIG_VERSION = 3;
 
-const DEFAULT_CONFIG: OrganizerConfig = {
+interface VersionedConfig extends OrganizerConfig {
+  version?: number;
+}
+
+// ===== Default Config =====
+const DEFAULT_CONFIG: VersionedConfig = {
+  version: CONFIG_VERSION,
   folders: [
     {
       id: "render",
-      name: "00_Render",
+      name: "Render",  // Will become "00_Render" automatically
       order: 0,
       isRenderFolder: true,
       renderKeywords: ["_render", "_final", "_output", "_export", "RENDER_", "[RENDER]"],
+      skipOrganization: true,
       categories: [],
     },
     {
       id: "source",
-      name: "01_Source",
+      name: "Source",  // Will become "01_Source"
       order: 1,
       isRenderFolder: false,
       categories: [
-        { type: "Footage", enabled: true, createSubfolders: false, detectSequences: true },
-        { type: "Images", enabled: true, createSubfolders: false, detectSequences: true },
-        { type: "Audio", enabled: true, createSubfolders: false },
-        { type: "Comps", enabled: true, createSubfolders: false },
+        { type: "Comps", enabled: true, order: 0, createSubfolders: false },
+        { type: "Footage", enabled: true, order: 1, createSubfolders: false, detectSequences: true },
+        { type: "Images", enabled: true, order: 2, createSubfolders: false, detectSequences: true },
+        { type: "Audio", enabled: true, order: 3, createSubfolders: false },
       ],
     },
     {
       id: "system",
-      name: "99_System",
+      name: "System",  // Will become "99_System"
       order: 99,
       isRenderFolder: false,
       categories: [
-        { type: "Solids", enabled: true, createSubfolders: false },
+        { type: "Solids", enabled: true, order: 0, createSubfolders: false },
       ],
     },
   ],
   exceptions: [],
+  renderCompIds: [],
 };
 
 const ALL_CATEGORIES: CategoryType[] = ["Comps", "Footage", "Images", "Audio", "Solids"];
 
 // ===== Helper Functions =====
-
 const generateId = () => Math.random().toString(36).substring(2, 9);
 
 const getAssignedCategories = (folders: FolderConfig[]): Map<CategoryType, string> => {
@@ -107,10 +118,78 @@ const getAssignedCategories = (folders: FolderConfig[]): Map<CategoryType, strin
   return assigned;
 };
 
-// ===== Components =====
+// Get display name with auto numbering
+const getDisplayFolderName = (folder: FolderConfig, index: number, totalFolders: number): string => {
+  // Special case: System folder always at end
+  if (folder.id === "system") {
+    return `99_${folder.name}`;
+  }
+  const prefix = index.toString().padStart(2, "0");
+  return `${prefix}_${folder.name}`;
+};
 
+// ===== Draggable Category Component =====
+const DraggableCategory = ({
+  category,
+  folderId,
+  onToggle,
+  onToggleSubfolders,
+  isDisabled,
+  assignedTo,
+  dragHandlers,
+}: {
+  category: CategoryConfig;
+  folderId: string;
+  onToggle: () => void;
+  onToggleSubfolders: () => void;
+  isDisabled: boolean;
+  assignedTo?: string;
+  dragHandlers: {
+    onDragStart: (e: React.DragEvent, type: CategoryType) => void;
+    onDragOver: (e: React.DragEvent) => void;
+    onDrop: (e: React.DragEvent, type: CategoryType) => void;
+  };
+}) => {
+  return (
+    <div
+      className={`category-item ${isDisabled ? "disabled" : ""}`}
+      draggable={!isDisabled && category.enabled}
+      onDragStart={(e) => dragHandlers.onDragStart(e, category.type)}
+      onDragOver={dragHandlers.onDragOver}
+      onDrop={(e) => dragHandlers.onDrop(e, category.type)}
+    >
+      <div className="category-drag-handle">⋮⋮</div>
+      <label className="category-checkbox">
+        <input
+          type="checkbox"
+          checked={category.enabled}
+          disabled={isDisabled}
+          onChange={onToggle}
+        />
+        <span>{category.type}</span>
+        {isDisabled && assignedTo && (
+          <span className="assigned-hint">(in {assignedTo})</span>
+        )}
+      </label>
+      {category.enabled && (
+        <label className="subfolder-option">
+          <input
+            type="checkbox"
+            checked={category.createSubfolders}
+            onChange={onToggleSubfolders}
+          />
+          <span>Subfolders</span>
+        </label>
+      )}
+    </div>
+  );
+};
+
+// ===== Folder Item Component =====
 const FolderItem = ({
   folder,
+  displayIndex,
+  totalFolders,
   onUpdate,
   onDelete,
   onMoveUp,
@@ -118,8 +197,11 @@ const FolderItem = ({
   assignedCategories,
   isFirst,
   isLast,
+  folders,
 }: {
   folder: FolderConfig;
+  displayIndex: number;
+  totalFolders: number;
   onUpdate: (folder: FolderConfig) => void;
   onDelete: () => void;
   onMoveUp: () => void;
@@ -127,26 +209,29 @@ const FolderItem = ({
   assignedCategories: Map<CategoryType, string>;
   isFirst: boolean;
   isLast: boolean;
+  folders: FolderConfig[];
 }) => {
   const [isExpanded, setIsExpanded] = useState(true);
+  const [draggedCategory, setDraggedCategory] = useState<CategoryType | null>(null);
+
+  const displayName = getDisplayFolderName(folder, displayIndex, totalFolders);
 
   const toggleCategory = (type: CategoryType) => {
     const categories = folder.categories || [];
     const existing = categories.find((c) => c.type === type);
 
     if (existing) {
-      // Toggle off
       onUpdate({
         ...folder,
         categories: categories.filter((c) => c.type !== type),
       });
     } else {
-      // Toggle on
+      const maxOrder = Math.max(0, ...categories.map((c) => c.order));
       onUpdate({
         ...folder,
         categories: [
           ...categories,
-          { type, enabled: true, createSubfolders: false, detectSequences: type === "Footage" || type === "Images" },
+          { type, enabled: true, order: maxOrder + 1, createSubfolders: false, detectSequences: type === "Footage" || type === "Images" },
         ],
       });
     }
@@ -171,79 +256,133 @@ const FolderItem = ({
     });
   };
 
+  // Drag handlers for category reordering
+  const categoryDragHandlers = {
+    onDragStart: (e: React.DragEvent, type: CategoryType) => {
+      setDraggedCategory(type);
+      e.dataTransfer.effectAllowed = "move";
+    },
+    onDragOver: (e: React.DragEvent) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+    },
+    onDrop: (e: React.DragEvent, targetType: CategoryType) => {
+      e.preventDefault();
+      if (!draggedCategory || draggedCategory === targetType) return;
+
+      const categories = folder.categories || [];
+      const draggedIdx = categories.findIndex((c) => c.type === draggedCategory);
+      const targetIdx = categories.findIndex((c) => c.type === targetType);
+
+      if (draggedIdx === -1 || targetIdx === -1) return;
+
+      const newCategories = [...categories];
+      const [removed] = newCategories.splice(draggedIdx, 1);
+      newCategories.splice(targetIdx, 0, removed);
+
+      // Update order numbers
+      newCategories.forEach((c, i) => {
+        c.order = i;
+      });
+
+      onUpdate({ ...folder, categories: newCategories });
+      setDraggedCategory(null);
+    },
+  };
+
+  const sortedCategories = [...(folder.categories || [])].sort((a, b) => a.order - b.order);
+
   return (
     <div className="folder-item">
       <div className="folder-header" onClick={() => setIsExpanded(!isExpanded)}>
         <span className="folder-icon">{isExpanded ? "▼" : "▶"}</span>
         <span className="folder-emoji">📁</span>
+        <span className="folder-display-name">{displayName}</span>
         <input
           type="text"
-          className="folder-name"
+          className="folder-name-input"
           value={folder.name}
           onClick={(e) => e.stopPropagation()}
           onChange={(e) => onUpdate({ ...folder, name: e.target.value })}
+          placeholder="Folder name"
         />
         <div className="folder-actions">
-          <button onClick={(e) => { e.stopPropagation(); onMoveUp(); }} disabled={isFirst}>↑</button>
-          <button onClick={(e) => { e.stopPropagation(); onMoveDown(); }} disabled={isLast}>↓</button>
-          <button onClick={(e) => { e.stopPropagation(); onDelete(); }} className="delete">✕</button>
+          {!folder.isRenderFolder && (
+            <>
+              <button onClick={(e) => { e.stopPropagation(); onMoveUp(); }} disabled={isFirst}>↑</button>
+              <button onClick={(e) => { e.stopPropagation(); onMoveDown(); }} disabled={isLast}>↓</button>
+              <button onClick={(e) => { e.stopPropagation(); onDelete(); }} className="delete">✕</button>
+            </>
+          )}
         </div>
       </div>
 
       {isExpanded && (
         <div className="folder-content">
           {folder.isRenderFolder ? (
-            <div className="render-keywords">
-              <label>Keywords:</label>
-              <input
-                type="text"
-                value={folder.renderKeywords?.join(", ") || ""}
-                onChange={(e) =>
-                  onUpdate({
-                    ...folder,
-                    renderKeywords: e.target.value.split(",").map((k) => k.trim()).filter(Boolean),
-                  })
-                }
-                placeholder="_render, _final, _output"
-              />
+            <div className="render-folder-settings">
+              <label className="skip-org-option">
+                <input
+                  type="checkbox"
+                  checked={folder.skipOrganization !== false}
+                  onChange={(e) => onUpdate({ ...folder, skipOrganization: e.target.checked })}
+                />
+                <span>Skip organization for items in this folder</span>
+              </label>
+              <div className="render-keywords">
+                <label>Keywords (auto-detect):</label>
+                <input
+                  type="text"
+                  value={folder.renderKeywords?.join(", ") || ""}
+                  onChange={(e) =>
+                    onUpdate({
+                      ...folder,
+                      renderKeywords: e.target.value.split(",").map((k) => k.trim()).filter(Boolean),
+                    })
+                  }
+                  placeholder="_render, _final, _output"
+                />
+              </div>
             </div>
           ) : (
             <div className="category-list">
-              {ALL_CATEGORIES.map((type) => {
-                const disabled = isCategoryDisabled(type);
-                const enabled = isCategoryEnabled(type);
-                const assignedTo = assignedCategories.get(type);
-                const catConfig = folder.categories?.find((c) => c.type === type);
+              {sortedCategories.length > 0 ? (
+                sortedCategories.map((cat) => {
+                  const disabled = isCategoryDisabled(cat.type);
+                  const assignedTo = assignedCategories.get(cat.type);
+                  const assignedFolderName = folders.find((f) => f.id === assignedTo)?.name;
 
-                return (
-                  <div key={type} className={`category-item ${disabled ? "disabled" : ""}`}>
-                    <label className="category-checkbox">
-                      <input
-                        type="checkbox"
-                        checked={enabled}
-                        disabled={disabled}
-                        onChange={() => toggleCategory(type)}
-                      />
-                      <span>{type}</span>
-                      {disabled && assignedTo && (
-                        <span className="assigned-hint">
-                          (in {DEFAULT_CONFIG.folders.find((f) => f.id === assignedTo)?.name || assignedTo})
-                        </span>
-                      )}
-                    </label>
-                    {enabled && catConfig && (
-                      <label className="subfolder-option">
-                        <input
-                          type="checkbox"
-                          checked={catConfig.createSubfolders}
-                          onChange={() => toggleSubfolders(type)}
-                        />
-                        <span>Create subfolders</span>
-                      </label>
-                    )}
-                  </div>
-                );
-              })}
+                  return (
+                    <DraggableCategory
+                      key={cat.type}
+                      category={cat}
+                      folderId={folder.id}
+                      onToggle={() => toggleCategory(cat.type)}
+                      onToggleSubfolders={() => toggleSubfolders(cat.type)}
+                      isDisabled={disabled}
+                      assignedTo={assignedFolderName}
+                      dragHandlers={categoryDragHandlers}
+                    />
+                  );
+                })
+              ) : (
+                <div className="no-categories">No categories assigned</div>
+              )}
+
+              {/* Available categories to add */}
+              <div className="add-category">
+                {ALL_CATEGORIES.filter(
+                  (type) => !folder.categories?.some((c) => c.type === type) && !isCategoryDisabled(type)
+                ).map((type) => (
+                  <button
+                    key={type}
+                    className="btn-add-category"
+                    onClick={() => toggleCategory(type)}
+                  >
+                    + {type}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
         </div>
@@ -253,14 +392,14 @@ const FolderItem = ({
 };
 
 // ===== Main App =====
-
 export const App = () => {
   const [bgColor, setBgColor] = useState("#282c34");
-  const [config, setConfig] = useState<OrganizerConfig>(DEFAULT_CONFIG);
+  const [config, setConfig] = useState<VersionedConfig>(DEFAULT_CONFIG);
   const [status, setStatus] = useState<"ready" | "organizing" | "success" | "error">("ready");
   const [result, setResult] = useState<OrganizeResult | null>(null);
   const [stats, setStats] = useState<ProjectStats | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [isRenderDrop, setIsRenderDrop] = useState(false);
   const [showExceptions, setShowExceptions] = useState(false);
 
   useEffect(() => {
@@ -269,11 +408,17 @@ export const App = () => {
     }
     refreshStats();
 
-    // Load saved config
+    // Load saved config (with version check)
     const saved = localStorage.getItem("ae-folder-organizer-config");
     if (saved) {
       try {
-        setConfig(JSON.parse(saved));
+        const parsed: VersionedConfig = JSON.parse(saved);
+        if (parsed.version === CONFIG_VERSION) {
+          setConfig(parsed);
+        } else {
+          console.log("Config version mismatch, using default config");
+          localStorage.removeItem("ae-folder-organizer-config");
+        }
       } catch (e) {
         console.error("Failed to load config:", e);
       }
@@ -300,6 +445,7 @@ export const App = () => {
       dragCounter--;
       if (dragCounter === 0) {
         setIsDragging(false);
+        setIsRenderDrop(false);
       }
     };
 
@@ -311,8 +457,7 @@ export const App = () => {
       e.preventDefault();
       dragCounter = 0;
       setIsDragging(false);
-      // Note: CEP drag-drop from AE project panel requires special handling
-      // For now, this handles the visual feedback
+      setIsRenderDrop(false);
     };
 
     window.addEventListener("dragenter", onDragEnter);
@@ -337,12 +482,40 @@ export const App = () => {
     }
   };
 
+  // Build config with auto-numbered folder names for ExtendScript
+  const buildConfigForExtendScript = (): OrganizerConfig => {
+    const sortedFolders = [...config.folders]
+      .filter((f) => f.id !== "system")
+      .sort((a, b) => a.order - b.order);
+
+    const systemFolder = config.folders.find((f) => f.id === "system");
+
+    const numberedFolders = sortedFolders.map((folder, index) => ({
+      ...folder,
+      name: getDisplayFolderName(folder, index, sortedFolders.length),
+    }));
+
+    if (systemFolder) {
+      numberedFolders.push({
+        ...systemFolder,
+        name: `99_${systemFolder.name}`,
+      });
+    }
+
+    return {
+      folders: numberedFolders,
+      exceptions: config.exceptions,
+      renderCompIds: config.renderCompIds || [],
+    };
+  };
+
   const handleOrganize = async () => {
     setStatus("organizing");
     setResult(null);
 
     try {
-      const organizeResult = await evalTS("organizeProject", JSON.stringify(config));
+      const extendScriptConfig = buildConfigForExtendScript();
+      const organizeResult = await evalTS("organizeProject", JSON.stringify(extendScriptConfig));
 
       if (organizeResult.success) {
         setStatus("success");
@@ -376,36 +549,65 @@ export const App = () => {
   };
 
   const deleteFolder = (index: number) => {
+    const folder = config.folders[index];
+    if (folder.isRenderFolder) return; // Can't delete Render folder
+
     const newFolders = config.folders.filter((_, i) => i !== index);
+    // Reorder remaining folders
+    newFolders.forEach((f, i) => {
+      if (!f.isRenderFolder && f.id !== "system") {
+        f.order = i;
+      }
+    });
     setConfig({ ...config, folders: newFolders });
   };
 
   const moveFolder = (index: number, direction: -1 | 1) => {
+    const folder = config.folders[index];
+    if (folder.isRenderFolder || folder.id === "system") return;
+
     const newFolders = [...config.folders];
     const newIndex = index + direction;
-    if (newIndex < 0 || newIndex >= newFolders.length) return;
+
+    // Don't move past render folder (index 0) or system folder
+    const targetFolder = newFolders[newIndex];
+    if (!targetFolder || targetFolder.isRenderFolder || targetFolder.id === "system") return;
 
     [newFolders[index], newFolders[newIndex]] = [newFolders[newIndex], newFolders[index]];
 
-    // Update order numbers
-    newFolders.forEach((f, i) => {
-      f.order = i;
-      f.name = f.name.replace(/^\d+_/, `${i.toString().padStart(2, "0")}_`);
+    // Update order numbers (skip render and system)
+    let orderNum = 1;
+    newFolders.forEach((f) => {
+      if (!f.isRenderFolder && f.id !== "system") {
+        f.order = orderNum++;
+      }
     });
 
     setConfig({ ...config, folders: newFolders });
   };
 
   const addFolder = () => {
-    const order = config.folders.length;
+    const normalFolders = config.folders.filter((f) => !f.isRenderFolder && f.id !== "system");
+    const order = normalFolders.length + 1;
+
     const newFolder: FolderConfig = {
       id: generateId(),
-      name: `${order.toString().padStart(2, "0")}_NewFolder`,
+      name: "NewFolder",
       order,
       isRenderFolder: false,
       categories: [],
     };
-    setConfig({ ...config, folders: [...config.folders, newFolder] });
+
+    // Insert before system folder
+    const systemIdx = config.folders.findIndex((f) => f.id === "system");
+    const newFolders = [...config.folders];
+    if (systemIdx !== -1) {
+      newFolders.splice(systemIdx, 0, newFolder);
+    } else {
+      newFolders.push(newFolder);
+    }
+
+    setConfig({ ...config, folders: newFolders });
   };
 
   const addException = () => {
@@ -431,12 +633,42 @@ export const App = () => {
 
   const assignedCategories = getAssignedCategories(config.folders);
 
+  // Get display indices (excluding system folder from count)
+  const getNormalFolderIndex = (folderIndex: number): number => {
+    let count = 0;
+    for (let i = 0; i < folderIndex; i++) {
+      const f = config.folders[i];
+      if (!f.isRenderFolder && f.id !== "system") {
+        count++;
+      }
+    }
+    return config.folders[folderIndex].isRenderFolder ? 0 : count + 1;
+  };
+
   return (
     <div className="app" style={{ backgroundColor: bgColor }}>
       {/* Drag Overlay */}
       {isDragging && (
         <div className="drop-overlay">
-          <div className="drop-content">
+          {/* Render Comp Drop Zone */}
+          <div
+            className={`render-drop-zone ${isRenderDrop ? "active" : ""}`}
+            onDragOver={(e) => { e.preventDefault(); setIsRenderDrop(true); }}
+            onDragLeave={() => setIsRenderDrop(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setIsRenderDrop(false);
+              // Handle render comp drop
+              console.log("Dropped to Render zone");
+            }}
+          >
+            <span className="zone-icon">🎬</span>
+            <span className="zone-text">Drop here for Render Comp</span>
+          </div>
+
+          {/* Normal Drop Zone */}
+          <div className="normal-drop-zone">
             <span className="drop-icon">📥</span>
             <span className="drop-text">Drop items here to organize</span>
           </div>
@@ -476,21 +708,32 @@ export const App = () => {
 
         {/* Folder Structure */}
         <section className="folders-section">
-          <h2 onClick={() => { }}>▼ Folder Structure</h2>
+          <h2>▼ Folder Structure</h2>
           <div className="folder-list">
-            {config.folders.map((folder, index) => (
-              <FolderItem
-                key={folder.id}
-                folder={folder}
-                onUpdate={(f) => updateFolder(index, f)}
-                onDelete={() => deleteFolder(index)}
-                onMoveUp={() => moveFolder(index, -1)}
-                onMoveDown={() => moveFolder(index, 1)}
-                assignedCategories={assignedCategories}
-                isFirst={index === 0}
-                isLast={index === config.folders.length - 1}
-              />
-            ))}
+            {config.folders.map((folder, index) => {
+              const normalFolders = config.folders.filter((f) => !f.isRenderFolder && f.id !== "system");
+              const isFirstNormal = !folder.isRenderFolder && folder.id !== "system" &&
+                normalFolders.indexOf(folder) === 0;
+              const isLastNormal = !folder.isRenderFolder && folder.id !== "system" &&
+                normalFolders.indexOf(folder) === normalFolders.length - 1;
+
+              return (
+                <FolderItem
+                  key={folder.id}
+                  folder={folder}
+                  displayIndex={getNormalFolderIndex(index)}
+                  totalFolders={normalFolders.length}
+                  onUpdate={(f) => updateFolder(index, f)}
+                  onDelete={() => deleteFolder(index)}
+                  onMoveUp={() => moveFolder(index, -1)}
+                  onMoveDown={() => moveFolder(index, 1)}
+                  assignedCategories={assignedCategories}
+                  isFirst={isFirstNormal}
+                  isLast={isLastNormal}
+                  folders={config.folders}
+                />
+              );
+            })}
           </div>
           <button className="btn-add" onClick={addFolder}>
             + Add Folder
@@ -527,9 +770,9 @@ export const App = () => {
                       value={ex.targetFolderId}
                       onChange={(e) => updateException(index, { ...ex, targetFolderId: e.target.value })}
                     >
-                      {config.folders.map((f) => (
+                      {config.folders.map((f, i) => (
                         <option key={f.id} value={f.id}>
-                          {f.name}
+                          {getDisplayFolderName(f, getNormalFolderIndex(i), config.folders.length)}
                         </option>
                       ))}
                     </select>

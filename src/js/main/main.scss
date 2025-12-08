@@ -23,24 +23,61 @@
 .drop-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(79, 195, 247, 0.12);
-  backdrop-filter: blur(3px);
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
   z-index: 1000;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 16px;
+  padding: 24px;
   animation: fadeIn 0.2s ease;
 }
 
-.drop-content {
+/* Render Drop Zone */
+.render-drop-zone {
+  width: 100%;
+  max-width: 300px;
+  padding: 20px;
+  background: rgba(255, 87, 34, 0.15);
+  border: 2px dashed rgba(255, 87, 34, 0.5);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s;
+}
+
+.render-drop-zone.active {
+  background: rgba(255, 87, 34, 0.3);
+  border-color: #ff5722;
+  transform: scale(1.02);
+}
+
+.render-drop-zone .zone-icon {
+  font-size: 28px;
+}
+
+.render-drop-zone .zone-text {
+  font-size: 12px;
+  font-weight: 600;
+  color: #ff8a65;
+}
+
+/* Normal Drop Zone */
+.normal-drop-zone {
+  width: 100%;
+  max-width: 300px;
+  padding: 40px 24px;
+  background: rgba(79, 195, 247, 0.12);
+  border: 3px dashed #4fc3f7;
+  border-radius: 16px;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 12px;
-  padding: 40px 60px;
-  background: rgba(0, 0, 0, 0.6);
-  border: 3px dashed #4fc3f7;
-  border-radius: 16px;
 }
 
 .drop-icon {
@@ -153,7 +190,7 @@
 .folder-header {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   padding: 8px 10px;
   cursor: pointer;
   transition: background 0.15s;
@@ -173,7 +210,13 @@
   font-size: 14px;
 }
 
-.folder-name {
+.folder-display-name {
+  font-size: 11px;
+  color: #666;
+  min-width: 70px;
+}
+
+.folder-name-input {
   flex: 1;
   background: transparent;
   border: none;
@@ -182,9 +225,10 @@
   font-weight: 500;
   padding: 2px 4px;
   border-radius: 3px;
+  min-width: 60px;
 }
 
-.folder-name:focus {
+.folder-name-input:focus {
   outline: none;
   background: rgba(255, 255, 255, 0.1);
 }
@@ -239,6 +283,26 @@
   }
 }
 
+/* Render Folder Settings */
+.render-folder-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.skip-org-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 11px;
+  color: #aaa;
+}
+
+.skip-org-option input {
+  accent-color: #ff8a65;
+}
+
 .render-keywords {
   display: flex;
   flex-direction: column;
@@ -261,24 +325,52 @@
 
 .render-keywords input:focus {
   outline: none;
-  border-color: #4fc3f7;
+  border-color: #ff8a65;
 }
 
 /* Category List */
 .category-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
+}
+
+.no-categories {
+  font-size: 11px;
+  color: #666;
+  font-style: italic;
+  padding: 8px 0;
 }
 
 .category-item {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 4px;
+  cursor: grab;
+  transition: background 0.15s;
+}
+
+.category-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.category-item:active {
+  cursor: grabbing;
 }
 
 .category-item.disabled {
   opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.category-drag-handle {
+  font-size: 10px;
+  color: #555;
+  cursor: grab;
+  padding: 0 2px;
 }
 
 .category-checkbox {
@@ -286,6 +378,7 @@
   align-items: center;
   gap: 6px;
   cursor: pointer;
+  flex: 1;
 }
 
 .category-checkbox input {
@@ -305,18 +398,45 @@
 .subfolder-option {
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin-left: 20px;
+  gap: 4px;
   cursor: pointer;
 }
 
 .subfolder-option input {
   accent-color: #81c784;
+  width: 12px;
+  height: 12px;
 }
 
 .subfolder-option span {
-  font-size: 10px;
+  font-size: 9px;
   color: #888;
+}
+
+/* Add Category Buttons */
+.add-category {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.1);
+}
+
+.btn-add-category {
+  background: rgba(79, 195, 247, 0.1);
+  border: 1px solid rgba(79, 195, 247, 0.3);
+  border-radius: 4px;
+  color: #4fc3f7;
+  font-size: 10px;
+  padding: 3px 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-add-category:hover {
+  background: rgba(79, 195, 247, 0.2);
+  border-color: #4fc3f7;
 }
 
 /* Exceptions */
