@@ -136,7 +136,10 @@ const isRenderComp = (item: Item, keywords: string[]): boolean => {
 
   const name = item.name.toLowerCase();
   for (let i = 0; i < keywords.length; i++) {
-    if (name.indexOf(keywords[i].toLowerCase()) !== -1) {
+    const keyword = keywords[i].trim();
+    // Skip empty keywords
+    if (keyword === "") continue;
+    if (name.indexOf(keyword.toLowerCase()) !== -1) {
       return true;
     }
   }
