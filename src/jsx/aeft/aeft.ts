@@ -36,6 +36,7 @@ interface SubcategoryConfig {
   extensions?: string[];
   keywords?: string[];
   keywordRequired?: boolean;
+  createSubfolders?: boolean;
 }
 
 interface ExceptionRule {

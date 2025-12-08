@@ -30,6 +30,7 @@ export interface SubcategoryConfig {
     extensions?: string[];     // filterType === "extension" 일 때
     keywords?: string[];       // filterType === "keyword" 일 때
     keywordRequired?: boolean; // true면 키워드 없으면 분류 안함 (폴더만 생성)
+    createSubfolders?: boolean; // 태그별 서브폴더 생성
 }
 
 export type CategoryType = "Comps" | "Footage" | "Images" | "Audio" | "Solids";

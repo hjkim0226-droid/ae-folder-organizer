@@ -33,6 +33,7 @@ interface SubcategoryConfig {
   extensions?: string[];
   keywords?: string[];
   keywordRequired?: boolean;
+  createSubfolders?: boolean;
 }
 
 type CategoryType = "Comps" | "Footage" | "Images" | "Audio" | "Solids";
@@ -209,6 +210,14 @@ const SubcategoryItem = ({
           <option value="keyword">Keyword</option>
         </select>
         {hasFilters && <span className="subcat-tag-count">🏷️{tags?.length}</span>}
+        <label className="subcat-sub-option" onClick={(e) => e.stopPropagation()}>
+          <input
+            type="checkbox"
+            checked={subcat.createSubfolders || false}
+            onChange={(e) => onUpdate({ createSubfolders: e.target.checked })}
+          />
+          <span>Sub</span>
+        </label>
         <button className="subcat-delete" onClick={onDelete}>✕</button>
       </div>
 

@@ -973,6 +973,21 @@
   border-radius: 4px;
 }
 
+.subcat-sub-option {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  cursor: pointer;
+  font-size: 9px;
+  color: #888;
+}
+
+.subcat-sub-option input {
+  accent-color: #ffc107;
+  width: 10px;
+  height: 10px;
+}
+
 .subcat-expand {
   font-size: 10px;
   color: #888;
