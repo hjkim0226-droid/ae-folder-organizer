@@ -117,7 +117,8 @@ const getAssignedCategories = (folders: FolderConfig[]): Map<CategoryType, strin
   const assigned = new Map<CategoryType, string>();
   folders.forEach((folder) => {
     folder.categories?.forEach((cat) => {
-      if (cat.enabled) {
+      // Skip categories with keywords - they can be duplicated across folders
+      if (cat.enabled && (!cat.keywords || cat.keywords.length === 0)) {
         assigned.set(cat.type, folder.id);
       }
     });
@@ -212,20 +213,41 @@ const DraggableCategory = ({
 
       {isExpanded && (
         <div className="category-keywords">
-          <label>Keywords (filter by name):</label>
+          <div className="keyword-tags">
+            {/* Show [All CategoryName] if no keywords */}
+            {(!category.keywords || category.keywords.length === 0) && (
+              <span className="keyword-tag all-tag">All {category.type}</span>
+            )}
+            {/* Show keyword tags */}
+            {category.keywords?.map((kw, idx) => (
+              <span
+                key={idx}
+                className="keyword-tag"
+                onClick={() => {
+                  const newKeywords = category.keywords?.filter((_, i) => i !== idx) || [];
+                  onUpdateKeywords(newKeywords);
+                }}
+              >
+                {kw} ×
+              </span>
+            ))}
+          </div>
           <input
             type="text"
-            placeholder="_temp, _draft, project_"
-            value={category.keywords?.join(", ") || ""}
-            onChange={(e) => {
-              const keywords = e.target.value
-                .split(",")
-                .map((k) => k.trim())
-                .filter(Boolean);
-              onUpdateKeywords(keywords);
+            placeholder="Add keyword (Enter to add)"
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                const input = e.currentTarget;
+                const value = input.value.trim();
+                if (value) {
+                  const newKeywords = [...(category.keywords || []), value];
+                  onUpdateKeywords(newKeywords);
+                  input.value = "";
+                }
+              }
             }}
           />
-          <small>When keywords are set, only items matching keywords go here</small>
+          <small>Keywords filter items. Empty = all items of this type.</small>
         </div>
       )}
     </div>
@@ -743,7 +765,7 @@ export const App = () => {
       <div className="container">
         <header className="header">
           <h1>📁 AE Folder Organizer</h1>
-          <span className="version">v1.1.9</span>
+          <span className="version">v1.2.0</span>
         </header>
 
         {stats && (

@@ -490,6 +490,68 @@
   margin-left: 4px;
 }
 
+/* Category Keywords with Tags */
+.category-keywords {
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  margin-left: 20px;
+}
+
+.keyword-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.keyword-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 10px;
+  background: #4fc3f7;
+  color: #000;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.keyword-tag:hover {
+  background: #e57373;
+}
+
+.keyword-tag.all-tag {
+  background: #81c784;
+  cursor: default;
+}
+
+.keyword-tag.all-tag:hover {
+  background: #81c784;
+}
+
+.category-keywords input {
+  width: 100%;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  padding: 6px 8px;
+  color: #fff;
+  font-size: 11px;
+}
+
+.category-keywords input:focus {
+  outline: none;
+  border-color: #4fc3f7;
+}
+
+.category-keywords small {
+  display: block;
+  font-size: 9px;
+  color: #666;
+  margin-top: 4px;
+}
+
 /* End Drop Zone */
 .drop-zone-end {
   padding: 8px;
