@@ -219,6 +219,7 @@ const DraggableCategory = ({
         }}
         onDragEnd={dragHandlers.onDragEnd}
       >
+        <div className="category-drag-handle">⋮⋮</div>
         <span
           className="category-name"
           onClick={() => setIsExpanded(!isExpanded)}
@@ -228,7 +229,6 @@ const DraggableCategory = ({
           {hasKeywords && <span className="keyword-badge">🔑</span>}
           {hasSubcategories && <span className="subcategory-badge">📂{category.subcategories?.length}</span>}
         </span>
-        <div className="category-drag-handle">⋮⋮</div>
         <label className="subfolder-option">
           <input
             type="checkbox"

@@ -99,6 +99,13 @@ const getFileExtension = (name: string): string => {
 };
 
 /**
+ * ES3-compatible trim function
+ */
+const trimStr = (str: string): string => {
+  return str.replace(/^\s+|\s+$/g, "");
+};
+
+/**
  * Check if item is an image sequence using mainSource.isStill
  * When isStill is false for an image file = it's a sequence
  */
@@ -153,7 +160,7 @@ const isRenderComp = (item: Item, keywords: string[]): boolean => {
 
   const name = item.name.toLowerCase();
   for (let i = 0; i < keywords.length; i++) {
-    const keyword = keywords[i].trim();
+    const keyword = trimStr(keywords[i]);
     // Skip empty keywords
     if (keyword === "") continue;
     if (name.indexOf(keyword.toLowerCase()) !== -1) {
@@ -501,7 +508,7 @@ export const organizeProject = (configJson: string, itemIdsJson?: string): Organ
                 if (keywords && keywords.length > 0) {
                   // Check if item name matches any keyword
                   for (let k = 0; k < keywords.length; k++) {
-                    const kw = keywords[k].trim();
+                    const kw = trimStr(keywords[k]);
                     if (kw !== "" && itemName.indexOf(kw.toLowerCase()) !== -1) {
                       selectedMapping = mapping;
                       break;
