@@ -65,8 +65,12 @@ interface ProjectStats {
 
 const VIDEO_EXTENSIONS = ["mp4", "mov", "avi", "mkv", "webm", "m4v", "wmv", "flv", "mxf"];
 const IMAGE_EXTENSIONS = ["jpg", "jpeg", "png", "psd", "tif", "tiff", "gif", "bmp", "ai", "eps", "svg"];
-const SEQUENCE_EXTENSIONS = ["exr", "dpx", "tga", "cin", "hdr"];
+const SEQUENCE_IMAGE_EXTENSIONS = ["png", "jpg", "jpeg", "tif", "tiff", "tga", "bmp", "gif"];
+const SEQUENCE_CG_EXTENSIONS = ["exr", "dpx", "cin", "hdr"];
 const AUDIO_EXTENSIONS = ["mp3", "wav", "aac", "m4a", "aif", "aiff", "ogg", "flac"];
+
+// Combined for sequence detection
+const ALL_SEQUENCE_EXTENSIONS = SEQUENCE_IMAGE_EXTENSIONS.concat(SEQUENCE_CG_EXTENSIONS);
 
 // ===== Helper Functions =====
 
@@ -84,32 +88,34 @@ const getFileExtension = (name: string): string => {
 };
 
 /**
- * Check if item is an image sequence
+ * Check if item is an image sequence using mainSource.isStill
+ * When isStill is false for an image file = it's a sequence
  */
 const isSequence = (item: FootageItem): boolean => {
   if (!(item.mainSource instanceof FileSource)) return false;
 
-  const name = item.name;
+  const source = item.mainSource as FileSource;
 
-  // Pattern 1: name_[####].ext or name[####].ext
-  if (/\[\#+\]\.\w+$/.test(name)) return true;
+  // If it's marked as still, it's definitely not a sequence
+  if (source.isStill) return false;
 
-  // Pattern 2: name.0001.ext (4+ digits)
-  if (/\.\d{4,}\.\w+$/.test(name)) return true;
+  // If not still, check if it's an image format (= image sequence)
+  const ext = getFileExtension(item.name);
 
-  // Pattern 3: name_0001.ext (4+ digits with underscore)
-  if (/_\d{4,}\.\w+$/.test(name)) return true;
-
-  // Check extension - common sequence formats
-  const ext = getFileExtension(name);
-  if (SEQUENCE_EXTENSIONS.indexOf(ext) !== -1) {
-    // If it's a sequence extension and has multiple frames duration
-    if (item.hasVideo && !item.hasAudio) {
-      if (item.duration > item.frameDuration * 2) return true;
-    }
+  // Not still + image extension = image sequence
+  for (let i = 0; i < ALL_SEQUENCE_EXTENSIONS.length; i++) {
+    if (ALL_SEQUENCE_EXTENSIONS[i] === ext) return true;
   }
 
   return false;
+};
+
+/**
+ * Get sequence type for subfolder naming (e.g., "EXR Sequence")
+ */
+const getSequenceType = (item: FootageItem): string => {
+  const ext = getFileExtension(item.name).toUpperCase();
+  return ext + " Sequence";
 };
 
 /**
@@ -159,21 +165,6 @@ const getItemCategory = (item: Item, detectSequences: boolean): string | null =>
 
     // Check for Sequence
     if (detectSequences && isSequence(item)) return "Sequences";
-
-    const ext = getFileExtension(item.name);
-
-    // Video
-    if (VIDEO_EXTENSIONS.indexOf(ext) !== -1) return "Footage";
-
-    // Images
-    if (IMAGE_EXTENSIONS.indexOf(ext) !== -1 || SEQUENCE_EXTENSIONS.indexOf(ext) !== -1) {
-      return "Images";
-    }
-
-    // Audio
-    if (AUDIO_EXTENSIONS.indexOf(ext) !== -1) return "Audio";
-
-    return "Footage"; // Default to Footage for unknown
   }
 
   return null;
@@ -438,11 +429,14 @@ export const organizeProject = (configJson: string, itemIdsJson?: string): Organ
         const categoryType = getItemCategory(item, detectSequences);
 
         if (categoryType !== null) {
-          // Handle "Sequences" as a subfolder of Footage
-          if (categoryType === "Sequences") {
+          // Handle "Sequences" as subfolder of Footage with extension-based sub-subfolder
+          if (categoryType === "Sequences" && item instanceof FootageItem) {
             if (footageMappings && footageMappings.length > 0) {
+              const seqType = getSequenceType(item); // e.g., "EXR Sequence"
               targetFolderId = footageMappings[0].folderId;
-              targetSubfolder = "Footage/Sequences";
+              // Create structure: 01_Footage/Sequences/EXR Sequence
+              const orderPrefix = (footageMappings[0].order < 10 ? "0" : "") + footageMappings[0].order;
+              targetSubfolder = orderPrefix + "_Footage/Sequences/" + seqType;
             }
           } else {
             const mappings = categoryFolderMappings[categoryType];
