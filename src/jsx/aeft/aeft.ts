@@ -380,12 +380,6 @@ export const organizeProject = (configJson: string, itemIdsJson?: string): Organ
         if (itemIds.indexOf(item.id) === -1) continue;
       }
 
-      // Skip items already in organized folders
-      if (isInOrganizedFolder(item, folderNames)) {
-        result.skipped++;
-        continue;
-      }
-
       itemsToProcess.push(item);
     }
 

@@ -172,8 +172,8 @@ const DraggableCategory = ({
       }}
       onDragEnd={dragHandlers.onDragEnd}
     >
-      <div className="category-drag-handle">⋮⋮</div>
       <span className="category-name">{category.type}</span>
+      <div className="category-drag-handle">⋮⋮</div>
       <label className="subfolder-option">
         <input
           type="checkbox"
@@ -330,14 +330,6 @@ const FolderItem = ({
         <div className="folder-content">
           {folder.isRenderFolder ? (
             <div className="render-folder-settings">
-              <label className="skip-org-option">
-                <input
-                  type="checkbox"
-                  checked={folder.skipOrganization !== false}
-                  onChange={(e) => onUpdate({ ...folder, skipOrganization: e.target.checked })}
-                />
-                <span>Skip organization for items in this folder</span>
-              </label>
               <div className="render-keywords">
                 <label>Keywords (auto-detect):</label>
                 <input
@@ -352,6 +344,14 @@ const FolderItem = ({
                   placeholder="_render, _final, _output"
                 />
               </div>
+              <label className="skip-org-option">
+                <input
+                  type="checkbox"
+                  checked={folder.skipOrganization !== false}
+                  onChange={(e) => onUpdate({ ...folder, skipOrganization: e.target.checked })}
+                />
+                <span>Skip organization for items in this folder</span>
+              </label>
             </div>
           ) : (
             <div className="category-list">
@@ -634,7 +634,7 @@ export const App = () => {
   return (
     <div className="app" style={{ backgroundColor: bgColor }}>
       {isDraggingExternal && (
-        <div className="drop-overlay">
+        <div className="drop-overlay" onClick={() => setIsDraggingExternal(false)}>
           <div
             className={`render-drop-zone ${isRenderDrop ? "active" : ""}`}
             onDragOver={(e) => { e.preventDefault(); setIsRenderDrop(true); }}
@@ -643,13 +643,23 @@ export const App = () => {
               e.preventDefault();
               e.stopPropagation();
               setIsRenderDrop(false);
+              setIsDraggingExternal(false);
+              // Show hint to add render keyword manually
+              alert('To mark a comp as Render:\n1. Add a keyword like "_render" to the comp name\n2. Or add the keyword to the Render folder settings');
             }}
           >
             <span className="zone-icon">🎬</span>
             <span className="zone-text">Drop here for Render Comp</span>
           </div>
 
-          <div className="normal-drop-zone">
+          <div
+            className="normal-drop-zone"
+            onDrop={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setIsDraggingExternal(false);
+            }}
+          >
             <span className="drop-icon">📥</span>
             <span className="drop-text">Drop items here to organize</span>
           </div>

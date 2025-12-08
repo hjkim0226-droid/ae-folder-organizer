@@ -420,8 +420,18 @@
 }
 
 .category-item.drag-over {
-  background: rgba(79, 195, 247, 0.2);
-  border: 1px dashed #4fc3f7;
+  position: relative;
+}
+
+.category-item.drag-over::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -3px;
+  height: 3px;
+  background: #4fc3f7;
+  border-radius: 2px;
 }
 
 /* Add Category Buttons */
