@@ -490,6 +490,24 @@
   margin-left: 4px;
 }
 
+/* End Drop Zone */
+.drop-zone-end {
+  padding: 8px;
+  margin-top: 4px;
+  border: 2px dashed rgba(79, 195, 247, 0.3);
+  border-radius: 4px;
+  text-align: center;
+  color: #666;
+  font-size: 10px;
+  transition: all 0.15s;
+}
+
+.drop-zone-end.active {
+  border-color: #4fc3f7;
+  background: rgba(79, 195, 247, 0.1);
+  color: #4fc3f7;
+}
+
 /* Add Category Buttons */
 .add-category {
   display: flex;

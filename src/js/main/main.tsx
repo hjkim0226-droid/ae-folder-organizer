@@ -256,7 +256,7 @@ const FolderItem = ({
 }) => {
   const [isExpanded, setIsExpanded] = useState(true);
   const [draggedCategory, setDraggedCategory] = useState<CategoryType | null>(null);
-  const [dragOverCategory, setDragOverCategory] = useState<CategoryType | null>(null);
+  const [dragOverCategory, setDragOverCategory] = useState<string | null>(null);
 
   const deleteCategory = (type: CategoryType) => {
     const categories = folder.categories || [];
@@ -400,23 +400,52 @@ const FolderItem = ({
           ) : (
             <div className="category-list">
               {sortedCategories.length > 0 ? (
-                sortedCategories.map((cat) => (
-                  <DraggableCategory
-                    key={cat.type}
-                    category={cat}
-                    onDelete={() => deleteCategory(cat.type)}
-                    onToggleSubfolders={() => toggleSubfolders(cat.type)}
-                    onUpdateKeywords={(keywords) => updateKeywords(cat.type, keywords)}
-                    isDragOver={dragOverCategory === cat.type}
-                    dragHandlers={{
-                      ...categoryDragHandlers,
-                      onDragOver: (e) => {
-                        categoryDragHandlers.onDragOver(e);
-                        setDragOverCategory(cat.type);
-                      },
-                    }}
-                  />
-                ))
+                <>
+                  {sortedCategories.map((cat) => (
+                    <DraggableCategory
+                      key={cat.type}
+                      category={cat}
+                      onDelete={() => deleteCategory(cat.type)}
+                      onToggleSubfolders={() => toggleSubfolders(cat.type)}
+                      onUpdateKeywords={(keywords) => updateKeywords(cat.type, keywords)}
+                      isDragOver={dragOverCategory === cat.type}
+                      dragHandlers={{
+                        ...categoryDragHandlers,
+                        onDragOver: (e) => {
+                          categoryDragHandlers.onDragOver(e);
+                          setDragOverCategory(cat.type);
+                        },
+                      }}
+                    />
+                  ))}
+                  {/* Drop zone for moving to end */}
+                  {draggedCategory && (
+                    <div
+                      className={`drop-zone-end ${dragOverCategory === "END" ? "active" : ""}`}
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        setDragOverCategory("END" as CategoryType);
+                      }}
+                      onDragLeave={() => setDragOverCategory(null)}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        setDragOverCategory(null);
+                        if (!draggedCategory) return;
+                        const categories = folder.categories || [];
+                        const draggedIdx = categories.findIndex((c) => c.type === draggedCategory);
+                        if (draggedIdx === -1) return;
+                        const newCategories = [...categories];
+                        const [removed] = newCategories.splice(draggedIdx, 1);
+                        newCategories.push(removed);
+                        newCategories.forEach((c, i) => { c.order = i; });
+                        onUpdate({ ...folder, categories: newCategories });
+                        setDraggedCategory(null);
+                      }}
+                    >
+                      <span>Drop here (end)</span>
+                    </div>
+                  )}
+                </>
               ) : (
                 <div className="no-categories">No categories assigned</div>
               )}
