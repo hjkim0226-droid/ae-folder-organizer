@@ -312,6 +312,15 @@
 .render-keywords label {
   font-size: 10px;
   color: #888;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.render-keyword-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 8px;
 }
 
 .render-keywords input {

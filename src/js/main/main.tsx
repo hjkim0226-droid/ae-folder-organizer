@@ -602,17 +602,38 @@ const FolderItem = ({
           {folder.isRenderFolder ? (
             <div className="render-folder-settings">
               <div className="render-keywords">
-                <label>Keywords (auto-detect):</label>
+                <label>🔑 Keywords (auto-detect)</label>
+                <div className="render-keyword-tags">
+                  {folder.renderKeywords?.map((kw, idx) => (
+                    <span
+                      key={idx}
+                      className="keyword-tag"
+                      onClick={() => {
+                        const newKeywords = folder.renderKeywords?.filter((_, i) => i !== idx) || [];
+                        onUpdate({ ...folder, renderKeywords: newKeywords });
+                      }}
+                    >
+                      {kw} ×
+                    </span>
+                  ))}
+                  {(!folder.renderKeywords || folder.renderKeywords.length === 0) && (
+                    <span className="keyword-tag warning-tag">⚠ No keywords</span>
+                  )}
+                </div>
                 <input
                   type="text"
-                  value={folder.renderKeywords?.join(", ") || ""}
-                  onChange={(e) =>
-                    onUpdate({
-                      ...folder,
-                      renderKeywords: e.target.value.split(",").map((k) => k.trim()).filter(Boolean),
-                    })
-                  }
-                  placeholder="_render, _final, _output"
+                  placeholder="Add keyword (Enter to add)"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      const input = e.currentTarget;
+                      const value = input.value.trim();
+                      if (value) {
+                        const newKeywords = [...(folder.renderKeywords || []), value];
+                        onUpdate({ ...folder, renderKeywords: newKeywords });
+                        input.value = "";
+                      }
+                    }
+                  }}
                 />
               </div>
               <label className="skip-org-option">
