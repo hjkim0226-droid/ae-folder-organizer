@@ -1,86 +1,53 @@
-# Bolt CEP Changelog
+# Changelog
 
-## Version 2.2.0 (2025-11-20)
+## [v1.1.5] - 2025-12-08
+### Fixed
+- **Category subfolders now created** - Comps, Footage, Images, Audio subfolders are created inside parent folder
+- Nested subfolder support (e.g., Footage/_MP4 when Sub is checked)
 
-- Added zxpOutput & zipOutput to config
+## [v1.1.4] - 2025-12-08
+### Fixed
+- **Classification bug** - Items in organized folders can now be re-organized
+- **Drop zone freeze** - Overlay now closes properly on drop
+- **Category name position** - Moved to leftmost position
 
-## Version 2.1.1 (2025-06-16)
+### Improved
+- Drag indicator now shows as a blue line between items
+- Render folder settings order: Keywords first, Skip option below
 
-- Add Changelog
-- Update Meta Bolt so yarn dep checks package versions and changelog
+## [v1.1.3] - 2025-12-08
+### Added
+- **Settings section** - New settings menu below Exceptions
+- **Delete empty folders** - Auto-delete empty folders after organizing (default: on)
+- **Category drag highlight** - Visual indicator when dragging categories
 
-## Version 2.1.0 (2025-06-06)
+## [v1.1.2] - 2025-12-08
+### Fixed
+- Drop zone only triggers on external drags (not internal category drags)
+- Removed unnecessary folder numbering display
+- Category delete changed from checkbox to X button
+- System folder always uses 99 numbering
 
-- Support for Svelte 5 added
-- Support for React 19 added
-- Support for Vue 3.5 added
-- Upgraded to TypeScript 5
-- Upgraded to Vite 6
+## [v1.1.1] - 2025-12-08
+### Added
+- **Auto-numbering** - Folders automatically numbered (00_, 01_, 99_)
+- **Category drag-drop** - Reorder categories within folders
+- **Render drop zone** - Dedicated zone for render comps
+- **Render folder protection** - Cannot be deleted
+- **Skip organization option** - Exclude items in Render folder
 
-## Version 2.0.0 (2025-05-30)
+## [v1.1.0] - 2025-12-08
+### Added
+- Custom folder hierarchy with unlimited folders
+- Category-based classification (Comps, Footage, Images, Audio, Solids)
+- Exclusive category assignment (one folder per category)
+- Exception rules system
+- Sequence detection for Footage/Images
+- Config persistence with localStorage
 
-- Migration to Meta Bolt (unified framework for all Bolt projects)
-- Monorepo consolidation (template (bolt-cep), plugin (vite-cep-plugin), and create script (create-bolt-cep))
-- Native support for yarn, npm, pnpm
-- Pick desired Adobe apps on create script
-- Select to keep or remove sample code on create script
-- Improved error catching for evalTS()
-- Updated style reset
-- Context Menu and Flyout Menu Templates
-- Zero byte files removed (required for Adobe Exchange)
-- Dozens of other quality-of-life improvements
-
-## Version 1.3.3 (2025-05-30)
-
-- Cleanup
-
-## Version 1.3.2 (2025-05-30)
-
-- Zero Byte File Removal on Build
-
-## Version 1.3.1 (2025-05-30)
-
-- CEP Dynamic Folder Fix
-- Docs updated for CEF flags for Adobe Spectrum on MacOS
-- Global dependency updates
-- Env var ACTION changed to BOLT_ACTION to avoid conflicts wit XCode
-- evalTS() catch more types of errors
-- removeEventListener() param type fix
-- Premiere types update
-- SCSS Syntax Update
-- Documented PlayerDebugMode requried for Setup
-- Overwrite .p12 file each time to avoid errors when changing ID
-
-## Version 1.3.0 (2025-05-13)
-
-- JSXBIN package updated for Apple Silicon compatibility
-- GitHub Actions YML fix for any extension name
-- types-for-adobe & types-for-adobe-extras update
-
-## Version 1.2.9 (2025-04-30)
-
-- ZXPSignCmd update for MacOS to fix timestamp signing issues
-- Readme updates for timestamp signing issues
-- PPRO time helpers added
-
-## Version 1.2.8 (2025-04-28)
-
-- ZXPSignCmd update for Windows to fix timestamp signing issues
-
-## Version 1.2.7 (2025-04-21)
-
-- Text Arrow Key Patch
-- PPRO Metadata helpers Added
-- TSA Fix
-- ZXPSignCmd permission fix for Mac
-
-## Version 1.2.6 (2024-09-06)
-
-- Account for missing BridgeTalk bug in AE
-- Enable Spectrum function
-
----
-
----
-
-_See Git history for previous changes changes..._
+## [v1.0.0] - 2025-12-08
+### Initial Release
+- Basic folder organization (Render, Data)
+- Render comp detection by keywords
+- Project statistics display
+- ZXP packaging support
