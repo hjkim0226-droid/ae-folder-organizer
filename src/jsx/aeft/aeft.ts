@@ -343,6 +343,26 @@ const deleteEmptyFolders = (): number => {
 // ===== Main Export Functions =====
 
 /**
+ * Get names of selected compositions
+ */
+export const getSelectedCompNames = (): string[] => {
+  const project = app.project;
+  const names: string[] = [];
+
+  // Get selected items from project panel
+  const selection = project.selection;
+
+  for (let i = 0; i < selection.length; i++) {
+    const item = selection[i];
+    if (item instanceof CompItem) {
+      names.push(item.name);
+    }
+  }
+
+  return names;
+};
+
+/**
  * Get project statistics
  */
 export const getProjectStats = (): ProjectStats => {

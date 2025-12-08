@@ -602,7 +602,30 @@ const FolderItem = ({
           {folder.isRenderFolder ? (
             <div className="render-folder-settings">
               <div className="render-keywords">
-                <label>🔑 Keywords (auto-detect)</label>
+                <div className="render-keywords-header">
+                  <label>🔑 Keywords (auto-detect)</label>
+                  <button
+                    className="btn-get-comps"
+                    onClick={async () => {
+                      try {
+                        const names = await evalTS("getSelectedCompNames");
+                        if (names && names.length > 0) {
+                          const newKeywords = [...(folder.renderKeywords || [])];
+                          for (const name of names) {
+                            if (!newKeywords.includes(name)) {
+                              newKeywords.push(name);
+                            }
+                          }
+                          onUpdate({ ...folder, renderKeywords: newKeywords });
+                        }
+                      } catch (e) {
+                        console.error("Failed to get selected comps:", e);
+                      }
+                    }}
+                  >
+                    + Selected Comps
+                  </button>
+                </div>
                 <div className="render-keyword-tags">
                   {folder.renderKeywords?.map((kw, idx) => (
                     <span
@@ -729,7 +752,6 @@ export const App = () => {
   const [result, setResult] = useState<OrganizeResult | null>(null);
   const [stats, setStats] = useState<ProjectStats | null>(null);
   const [isDraggingExternal, setIsDraggingExternal] = useState(false);
-  const [isRenderDrop, setIsRenderDrop] = useState(false);
   const [showExceptions, setShowExceptions] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
 
@@ -778,7 +800,6 @@ export const App = () => {
       dragCounter--;
       if (dragCounter === 0) {
         setIsDraggingExternal(false);
-        setIsRenderDrop(false);
       }
     };
 
@@ -795,7 +816,6 @@ export const App = () => {
       e.preventDefault();
       dragCounter = 0;
       setIsDraggingExternal(false);
-      setIsRenderDrop(false);
     };
 
     window.addEventListener("dragenter", onDragEnter);
@@ -957,23 +977,6 @@ export const App = () => {
     <div className="app" style={{ backgroundColor: bgColor }}>
       {isDraggingExternal && (
         <div className="drop-overlay" onClick={() => setIsDraggingExternal(false)}>
-          <div
-            className={`render-drop-zone ${isRenderDrop ? "active" : ""}`}
-            onDragOver={(e) => { e.preventDefault(); setIsRenderDrop(true); }}
-            onDragLeave={() => setIsRenderDrop(false)}
-            onDrop={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              setIsRenderDrop(false);
-              setIsDraggingExternal(false);
-              // Show hint to add render keyword manually
-              alert('To mark a comp as Render:\n1. Add a keyword like "_render" to the comp name\n2. Or add the keyword to the Render folder settings');
-            }}
-          >
-            <span className="zone-icon">🎬</span>
-            <span className="zone-text">Drop here for Render Comp</span>
-          </div>
-
           <div
             className="normal-drop-zone"
             onDrop={(e) => {
