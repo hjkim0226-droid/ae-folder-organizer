@@ -482,7 +482,6 @@ const FolderItem = ({
                         setDraggedCategory(null);
                       }}
                     >
-                      <span>Drop here (end)</span>
                     </div>
                   )}
                 </>
