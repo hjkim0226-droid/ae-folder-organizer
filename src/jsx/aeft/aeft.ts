@@ -23,6 +23,7 @@ interface CategoryConfig {
   enabled: boolean;
   createSubfolders: boolean;
   detectSequences?: boolean;
+  keywords?: string[];
 }
 
 interface ExceptionRule {

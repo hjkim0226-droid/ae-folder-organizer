@@ -342,6 +342,24 @@
   padding: 8px 0;
 }
 
+.category-item-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  position: relative;
+}
+
+.category-item-wrapper.drag-over::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -3px;
+  height: 3px;
+  background: #4fc3f7;
+  border-radius: 2px;
+}
+
 .category-item {
   display: flex;
   align-items: center;
@@ -419,10 +437,6 @@
   color: #e57373;
 }
 
-.category-item.drag-over {
-  position: relative;
-}
-
 .category-item.drag-over::before {
   content: "";
   position: absolute;
@@ -432,6 +446,48 @@
   height: 3px;
   background: #4fc3f7;
   border-radius: 2px;
+}
+
+/* Category Keywords */
+.category-keywords {
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  margin-left: 20px;
+}
+
+.category-keywords label {
+  font-size: 10px;
+  color: #888;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.category-keywords input {
+  width: 100%;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  padding: 6px 8px;
+  color: #fff;
+  font-size: 11px;
+}
+
+.category-keywords input:focus {
+  outline: none;
+  border-color: #4fc3f7;
+}
+
+.category-keywords small {
+  display: block;
+  font-size: 9px;
+  color: #666;
+  margin-top: 4px;
+}
+
+.keyword-badge {
+  font-size: 10px;
+  margin-left: 4px;
 }
 
 /* Add Category Buttons */

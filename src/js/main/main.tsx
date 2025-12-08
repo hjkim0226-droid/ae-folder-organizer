@@ -20,6 +20,7 @@ interface CategoryConfig {
   order: number;
   createSubfolders: boolean;
   detectSequences?: boolean;
+  keywords?: string[];  // When keywords exist, filter by keywords instead of format
 }
 
 type CategoryType = "Comps" | "Footage" | "Images" | "Audio" | "Solids";
@@ -137,12 +138,14 @@ const DraggableCategory = ({
   category,
   onDelete,
   onToggleSubfolders,
+  onUpdateKeywords,
   isDragOver,
   dragHandlers,
 }: {
   category: CategoryConfig;
   onDelete: () => void;
   onToggleSubfolders: () => void;
+  onUpdateKeywords: (keywords: string[]) => void;
   isDragOver: boolean;
   dragHandlers: {
     onDragStart: (e: React.DragEvent, type: CategoryType) => void;
@@ -152,48 +155,79 @@ const DraggableCategory = ({
     onDragEnd: () => void;
   };
 }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const hasKeywords = category.keywords && category.keywords.length > 0;
+
   return (
-    <div
-      className={`category-item ${isDragOver ? "drag-over" : ""}`}
-      draggable
-      onDragStart={(e) => {
-        e.stopPropagation();
-        dragHandlers.onDragStart(e, category.type);
-      }}
-      onDragOver={(e) => {
-        e.stopPropagation();
-        e.preventDefault();
-        dragHandlers.onDragOver(e);
-      }}
-      onDragLeave={dragHandlers.onDragLeave}
-      onDrop={(e) => {
-        e.stopPropagation();
-        dragHandlers.onDrop(e, category.type);
-      }}
-      onDragEnd={dragHandlers.onDragEnd}
-    >
-      <span className="category-name">{category.type}</span>
-      <div className="category-drag-handle">⋮⋮</div>
-      <label className="subfolder-option">
-        <input
-          type="checkbox"
-          checked={category.createSubfolders}
-          onChange={(e) => {
-            e.stopPropagation();
-            onToggleSubfolders();
-          }}
-        />
-        <span>Sub</span>
-      </label>
-      <button
-        className="category-delete"
-        onClick={(e) => {
+    <div className={`category-item-wrapper ${isDragOver ? "drag-over" : ""}`}>
+      <div
+        className="category-item"
+        draggable
+        onDragStart={(e) => {
           e.stopPropagation();
-          onDelete();
+          dragHandlers.onDragStart(e, category.type);
         }}
+        onDragOver={(e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          dragHandlers.onDragOver(e);
+        }}
+        onDragLeave={dragHandlers.onDragLeave}
+        onDrop={(e) => {
+          e.stopPropagation();
+          dragHandlers.onDrop(e, category.type);
+        }}
+        onDragEnd={dragHandlers.onDragEnd}
       >
-        ✕
-      </button>
+        <span
+          className="category-name"
+          onClick={() => setIsExpanded(!isExpanded)}
+          style={{ cursor: "pointer" }}
+        >
+          {isExpanded ? "▼" : "▶"} {category.type}
+          {hasKeywords && <span className="keyword-badge">🔑</span>}
+        </span>
+        <div className="category-drag-handle">⋮⋮</div>
+        <label className="subfolder-option">
+          <input
+            type="checkbox"
+            checked={category.createSubfolders}
+            onChange={(e) => {
+              e.stopPropagation();
+              onToggleSubfolders();
+            }}
+          />
+          <span>Sub</span>
+        </label>
+        <button
+          className="category-delete"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete();
+          }}
+        >
+          ✕
+        </button>
+      </div>
+
+      {isExpanded && (
+        <div className="category-keywords">
+          <label>Keywords (filter by name):</label>
+          <input
+            type="text"
+            placeholder="_temp, _draft, project_"
+            value={category.keywords?.join(", ") || ""}
+            onChange={(e) => {
+              const keywords = e.target.value
+                .split(",")
+                .map((k) => k.trim())
+                .filter(Boolean);
+              onUpdateKeywords(keywords);
+            }}
+          />
+          <small>When keywords are set, only items matching keywords go here</small>
+        </div>
+      )}
     </div>
   );
 };
@@ -255,6 +289,16 @@ const FolderItem = ({
       ...folder,
       categories: categories.map((c) =>
         c.type === type ? { ...c, createSubfolders: !c.createSubfolders } : c
+      ),
+    });
+  };
+
+  const updateKeywords = (type: CategoryType, keywords: string[]) => {
+    const categories = folder.categories || [];
+    onUpdate({
+      ...folder,
+      categories: categories.map((c) =>
+        c.type === type ? { ...c, keywords } : c
       ),
     });
   };
@@ -362,6 +406,7 @@ const FolderItem = ({
                     category={cat}
                     onDelete={() => deleteCategory(cat.type)}
                     onToggleSubfolders={() => toggleSubfolders(cat.type)}
+                    onUpdateKeywords={(keywords) => updateKeywords(cat.type, keywords)}
                     isDragOver={dragOverCategory === cat.type}
                     dragHandlers={{
                       ...categoryDragHandlers,
