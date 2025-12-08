@@ -827,3 +827,133 @@
 .result-stats strong {
   color: #fff;
 }
+
+/* Subcategory Badge */
+.subcategory-badge {
+  font-size: 10px;
+  margin-left: 4px;
+  color: #ffc107;
+}
+
+/* Category Expanded Section */
+.category-expanded {
+  margin-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Subcategories Section */
+.subcategories-section {
+  padding: 8px 12px;
+  background: rgba(255, 193, 7, 0.08);
+  border-radius: 4px;
+  border-left: 2px solid rgba(255, 193, 7, 0.3);
+}
+
+.subcategories-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 11px;
+  color: #ffc107;
+}
+
+.btn-add-subcategory {
+  background: rgba(255, 193, 7, 0.15);
+  border: 1px solid rgba(255, 193, 7, 0.3);
+  border-radius: 4px;
+  color: #ffc107;
+  font-size: 10px;
+  padding: 2px 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-add-subcategory:hover {
+  background: rgba(255, 193, 7, 0.3);
+  border-color: #ffc107;
+}
+
+.subcategories-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.subcategory-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+
+.subcat-name {
+  width: 70px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  padding: 4px 6px;
+  color: #fff;
+  font-size: 10px;
+}
+
+.subcat-name:focus {
+  outline: none;
+  border-color: #ffc107;
+}
+
+.subcat-filter {
+  width: 80px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  padding: 4px 6px;
+  color: #fff;
+  font-size: 10px;
+}
+
+.subcat-filter:focus {
+  outline: none;
+  border-color: #ffc107;
+}
+
+.subcat-extensions,
+.subcat-keywords {
+  flex: 1;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  padding: 4px 6px;
+  color: #fff;
+  font-size: 10px;
+}
+
+.subcat-extensions:focus,
+.subcat-keywords:focus {
+  outline: none;
+  border-color: #ffc107;
+}
+
+.subcat-delete {
+  background: none;
+  border: none;
+  color: #666;
+  font-size: 10px;
+  padding: 2px 4px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.subcat-delete:hover {
+  color: #e57373;
+}
+
+.no-subcategories {
+  font-size: 10px;
+  color: #666;
+  font-style: italic;
+}

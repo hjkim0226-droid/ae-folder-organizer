@@ -22,6 +22,17 @@ interface CategoryConfig {
   detectSequences?: boolean;
   keywords?: string[];  // When keywords exist, filter by keywords instead of format
   needsKeyword?: boolean;  // True when this is a duplicate category requiring keywords
+  subcategories?: SubcategoryConfig[];  // Subcategory layers
+}
+
+interface SubcategoryConfig {
+  id: string;
+  name: string;
+  order: number;
+  filterType: "extension" | "keyword" | "all";
+  extensions?: string[];
+  keywords?: string[];
+  keywordRequired?: boolean;
 }
 
 type CategoryType = "Comps" | "Footage" | "Images" | "Audio" | "Solids";
@@ -141,6 +152,7 @@ const DraggableCategory = ({
   onDelete,
   onToggleSubfolders,
   onUpdateKeywords,
+  onUpdateSubcategories,
   isDragOver,
   dragHandlers,
 }: {
@@ -148,6 +160,7 @@ const DraggableCategory = ({
   onDelete: () => void;
   onToggleSubfolders: () => void;
   onUpdateKeywords: (keywords: string[]) => void;
+  onUpdateSubcategories: (subcategories: SubcategoryConfig[]) => void;
   isDragOver: boolean;
   dragHandlers: {
     onDragStart: (e: React.DragEvent, type: CategoryType) => void;
@@ -159,6 +172,31 @@ const DraggableCategory = ({
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const hasKeywords = category.keywords && category.keywords.length > 0;
+  const hasSubcategories = category.subcategories && category.subcategories.length > 0;
+
+  const addSubcategory = () => {
+    const subcats = category.subcategories || [];
+    const maxOrder = Math.max(0, ...subcats.map((s) => s.order));
+    const newSubcat: SubcategoryConfig = {
+      id: generateId(),
+      name: "NewSub",
+      order: maxOrder + 1,
+      filterType: "all",
+    };
+    onUpdateSubcategories([...subcats, newSubcat]);
+  };
+
+  const updateSubcategory = (id: string, updates: Partial<SubcategoryConfig>) => {
+    const subcats = category.subcategories || [];
+    onUpdateSubcategories(
+      subcats.map((s) => (s.id === id ? { ...s, ...updates } : s))
+    );
+  };
+
+  const deleteSubcategory = (id: string) => {
+    const subcats = category.subcategories || [];
+    onUpdateSubcategories(subcats.filter((s) => s.id !== id));
+  };
 
   return (
     <div className={`category-item-wrapper ${isDragOver ? "drag-over" : ""}`}>
@@ -188,6 +226,7 @@ const DraggableCategory = ({
         >
           {isExpanded ? "▼" : "▶"} {category.type}
           {hasKeywords && <span className="keyword-badge">🔑</span>}
+          {hasSubcategories && <span className="subcategory-badge">📂{category.subcategories?.length}</span>}
         </span>
         <div className="category-drag-handle">⋮⋮</div>
         <label className="subfolder-option">
@@ -213,46 +252,110 @@ const DraggableCategory = ({
       </div>
 
       {isExpanded && (
-        <div className="category-keywords">
-          <div className="keyword-tags">
-            {/* Show [Keyword Required] if needsKeyword and no keywords */}
-            {category.needsKeyword && (!category.keywords || category.keywords.length === 0) && (
-              <span className="keyword-tag required-tag">⚠ Keyword Required</span>
-            )}
-            {/* Show [All CategoryName] if no keywords and not needsKeyword */}
-            {!category.needsKeyword && (!category.keywords || category.keywords.length === 0) && (
-              <span className="keyword-tag all-tag">All {category.type}</span>
-            )}
-            {/* Show keyword tags */}
-            {category.keywords?.map((kw, idx) => (
-              <span
-                key={idx}
-                className="keyword-tag"
-                onClick={() => {
-                  const newKeywords = category.keywords?.filter((_, i) => i !== idx) || [];
-                  onUpdateKeywords(newKeywords);
-                }}
-              >
-                {kw} ×
-              </span>
-            ))}
-          </div>
-          <input
-            type="text"
-            placeholder="Add keyword (Enter to add)"
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                const input = e.currentTarget;
-                const value = input.value.trim();
-                if (value) {
-                  const newKeywords = [...(category.keywords || []), value];
-                  onUpdateKeywords(newKeywords);
-                  input.value = "";
+        <div className="category-expanded">
+          {/* Keywords Section */}
+          <div className="category-keywords">
+            <div className="keyword-tags">
+              {category.needsKeyword && (!category.keywords || category.keywords.length === 0) && (
+                <span className="keyword-tag required-tag">⚠ Keyword Required</span>
+              )}
+              {!category.needsKeyword && (!category.keywords || category.keywords.length === 0) && (
+                <span className="keyword-tag all-tag">All {category.type}</span>
+              )}
+              {category.keywords?.map((kw, idx) => (
+                <span
+                  key={idx}
+                  className="keyword-tag"
+                  onClick={() => {
+                    const newKeywords = category.keywords?.filter((_, i) => i !== idx) || [];
+                    onUpdateKeywords(newKeywords);
+                  }}
+                >
+                  {kw} ×
+                </span>
+              ))}
+            </div>
+            <input
+              type="text"
+              placeholder="Add keyword (Enter to add)"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  const input = e.currentTarget;
+                  const value = input.value.trim();
+                  if (value) {
+                    const newKeywords = [...(category.keywords || []), value];
+                    onUpdateKeywords(newKeywords);
+                    input.value = "";
+                  }
                 }
-              }
-            }}
-          />
-          <small>Keywords filter items. Empty = all items of this type.</small>
+              }}
+            />
+          </div>
+
+          {/* Subcategories Section */}
+          <div className="subcategories-section">
+            <div className="subcategories-header">
+              <span>📂 Subcategories</span>
+              <button className="btn-add-subcategory" onClick={addSubcategory}>+ Add</button>
+            </div>
+            {hasSubcategories ? (
+              <div className="subcategories-list">
+                {category.subcategories
+                  ?.sort((a, b) => a.order - b.order)
+                  .map((subcat) => (
+                    <div key={subcat.id} className="subcategory-item">
+                      <input
+                        type="text"
+                        className="subcat-name"
+                        value={subcat.name}
+                        onChange={(e) => updateSubcategory(subcat.id, { name: e.target.value })}
+                      />
+                      <select
+                        className="subcat-filter"
+                        value={subcat.filterType}
+                        onChange={(e) => updateSubcategory(subcat.id, {
+                          filterType: e.target.value as "extension" | "keyword" | "all"
+                        })}
+                      >
+                        <option value="all">All</option>
+                        <option value="extension">Extension</option>
+                        <option value="keyword">Keyword</option>
+                      </select>
+                      {subcat.filterType === "extension" && (
+                        <input
+                          type="text"
+                          className="subcat-extensions"
+                          placeholder="mp4, mov, ..."
+                          value={subcat.extensions?.join(", ") || ""}
+                          onChange={(e) => updateSubcategory(subcat.id, {
+                            extensions: e.target.value.split(",").map((s) => s.trim()).filter(Boolean)
+                          })}
+                        />
+                      )}
+                      {subcat.filterType === "keyword" && (
+                        <input
+                          type="text"
+                          className="subcat-keywords"
+                          placeholder="vfx_, _bg, ..."
+                          value={subcat.keywords?.join(", ") || ""}
+                          onChange={(e) => updateSubcategory(subcat.id, {
+                            keywords: e.target.value.split(",").map((s) => s.trim()).filter(Boolean)
+                          })}
+                        />
+                      )}
+                      <button
+                        className="subcat-delete"
+                        onClick={() => deleteSubcategory(subcat.id)}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+              </div>
+            ) : (
+              <small className="no-subcategories">No subcategories. Extension-based subfolders will be used if "Sub" is checked.</small>
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -339,6 +442,16 @@ const FolderItem = ({
       ...folder,
       categories: categories.map((c) =>
         c.type === type ? { ...c, keywords } : c
+      ),
+    });
+  };
+
+  const updateSubcategories = (type: CategoryType, subcategories: SubcategoryConfig[]) => {
+    const categories = folder.categories || [];
+    onUpdate({
+      ...folder,
+      categories: categories.map((c) =>
+        c.type === type ? { ...c, subcategories } : c
       ),
     });
   };
@@ -448,6 +561,7 @@ const FolderItem = ({
                       onDelete={() => deleteCategory(cat.type)}
                       onToggleSubfolders={() => toggleSubfolders(cat.type)}
                       onUpdateKeywords={(keywords) => updateKeywords(cat.type, keywords)}
+                      onUpdateSubcategories={(subcats) => updateSubcategories(cat.type, subcats)}
                       isDragOver={dragOverCategory === cat.type}
                       dragHandlers={{
                         ...categoryDragHandlers,
