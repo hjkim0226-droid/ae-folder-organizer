@@ -173,6 +173,7 @@ const isRenderComp = (item: Item, keywords: string[]): boolean => {
 
 /**
  * Determine item category type
+ * Extended to properly return Footage/Images/Audio based on extension
  */
 const getItemCategory = (item: Item, detectSequences: boolean): string | null => {
   if (item instanceof CompItem) return "Comps";
@@ -182,8 +183,24 @@ const getItemCategory = (item: Item, detectSequences: boolean): string | null =>
     // Check for Solid first
     if (isSolid(item)) return "Solids";
 
-    // Check for Sequence
+    // Check for Sequence (return special type for later processing)
     if (detectSequences && isSequence(item)) return "Sequences";
+
+    // Get extension for categorization
+    const ext = getFileExtension(item.name);
+
+    // Check Audio first (more specific)
+    for (let i = 0; i < AUDIO_EXTENSIONS.length; i++) {
+      if (AUDIO_EXTENSIONS[i] === ext) return "Audio";
+    }
+
+    // Check Images (static images, not sequences)
+    for (let i = 0; i < IMAGE_EXTENSIONS.length; i++) {
+      if (IMAGE_EXTENSIONS[i] === ext) return "Images";
+    }
+
+    // Default: treat as Footage (video files and others)
+    return "Footage";
   }
 
   return null;
@@ -581,14 +598,20 @@ export const organizeProject = (configJson: string, itemIdsJson?: string): Organ
         const categoryType = getItemCategory(item, detectSequences);
 
         if (categoryType !== null) {
-          // Handle "Sequences" as subfolder of Footage with extension-based sub-subfolder
+          // Handle "Sequences" - only create subfolder if createSubfolders is enabled
           if (categoryType === "Sequences" && item instanceof FootageItem) {
             if (footageMappings && footageMappings.length > 0) {
-              const seqType = getSequenceType(item); // e.g., "EXR Sequence"
               targetFolderId = footageMappings[0].folderId;
-              // Create structure: 01_Footage/Sequences/EXR Sequence
               const orderPrefix = (footageMappings[0].order < 10 ? "0" : "") + footageMappings[0].order;
-              targetSubfolder = orderPrefix + "_Footage/Sequences/" + seqType;
+
+              // Only create Sequences subfolder if createSubfolders is checked
+              if (footageMappings[0].config.createSubfolders) {
+                const seqType = getSequenceType(item); // e.g., "EXR Sequence"
+                targetSubfolder = orderPrefix + "_Footage/Sequences/" + seqType;
+              } else {
+                // Just put in Footage folder without sequence subfolder
+                targetSubfolder = orderPrefix + "_Footage";
+              }
             }
           } else {
             const mappings = categoryFolderMappings[categoryType];
