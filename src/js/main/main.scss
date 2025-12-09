@@ -1098,8 +1098,18 @@
 }
 
 .subcategory-item.drag-over {
-  background: rgba(255, 193, 7, 0.2);
-  border-radius: 4px;
+  position: relative;
+}
+
+.subcategory-item.drag-over::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -3px;
+  height: 3px;
+  background: #ffc107;
+  border-radius: 2px;
 }
 
 .subcat-tag-count {

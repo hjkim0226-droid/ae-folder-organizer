@@ -1,5 +1,17 @@
 # Changelog
 
+## [v1.10.2] - 2025-12-09
+### Fixed
+- **Main category filter deletion** - Single filter can now be deleted properly
+- **Subcategory drag indicator** - Now shows line between items (same as main category)
+
+### Improved
+- **Section order** - Batch Rename and Settings moved below Organize button
+- **Subcategory validation**:
+  - Second+ subcategory shows "Filter Required" when previous has filters
+  - Only first subcategory can be "All Items"
+  - Prevents multiple "All Items" in same level
+
 ## [v1.10.1] - 2025-12-09
 ### Improved
 - **Category layout** - Name on left, checkbox/X button now right-aligned

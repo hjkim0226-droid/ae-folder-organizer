@@ -194,6 +194,8 @@ const SubcategoryItem = ({
   onDragLeave,
   onDrop,
   onDragEnd,
+  needsFilter,
+  canBeAllItems,
 }: {
   subcat: SubcategoryConfig;
   onUpdate: (updates: Partial<SubcategoryConfig>) => void;
@@ -204,6 +206,8 @@ const SubcategoryItem = ({
   onDragLeave: () => void;
   onDrop: () => void;
   onDragEnd: () => void;
+  needsFilter: boolean;  // True if this subcategory must have filters
+  canBeAllItems: boolean;  // True if this subcategory can be "All Items"
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -304,8 +308,14 @@ const SubcategoryItem = ({
                 {getTagLabel(filter)} ×
               </span>
             ))}
-            {!hasFilters && (
+            {!hasFilters && needsFilter && (
+              <span className="subcat-tag warning-tag">⚠ Filter Required</span>
+            )}
+            {!hasFilters && !needsFilter && canBeAllItems && (
               <span className="subcat-tag all-tag">📁 All Items (no filter)</span>
+            )}
+            {!hasFilters && !needsFilter && !canBeAllItems && (
+              <span className="subcat-tag warning-tag">⚠ Cannot be All Items</span>
             )}
           </div>
           <input
@@ -549,29 +559,53 @@ const DraggableCategory = ({
               <div className="subcategories-list">
                 {category.subcategories
                   ?.sort((a, b) => a.order - b.order)
-                  .map((subcat) => (
-                    <SubcategoryItem
-                      key={subcat.id}
-                      subcat={subcat}
-                      onUpdate={(updates) => updateSubcategory(subcat.id, updates)}
-                      onDelete={() => deleteSubcategory(subcat.id)}
-                      isDragOver={dragOverSubcat === subcat.id}
-                      onDragStart={() => setDraggedSubcat(subcat.id)}
-                      onDragOver={(e) => { e.preventDefault(); setDragOverSubcat(subcat.id); }}
-                      onDragLeave={() => setDragOverSubcat(null)}
-                      onDrop={() => {
-                        if (draggedSubcat && draggedSubcat !== subcat.id) {
-                          reorderSubcategory(draggedSubcat, subcat.id);
-                        }
-                        setDraggedSubcat(null);
-                        setDragOverSubcat(null);
-                      }}
-                      onDragEnd={() => {
-                        setDraggedSubcat(null);
-                        setDragOverSubcat(null);
-                      }}
-                    />
-                  ))}
+                  .map((subcat, index, sortedSubcats) => {
+                    // Calculate if this subcategory needs a filter
+                    // Rule: If not the first and previous has filters, this one needs filters
+                    // Rule: Only the first subcategory can be "All Items"
+                    const getSubcatHasFilters = (sc: SubcategoryConfig) => {
+                      if (sc.filters && sc.filters.length > 0) return true;
+                      if (sc.extensions && sc.extensions.length > 0) return true;
+                      if (sc.keywords && sc.keywords.length > 0) return true;
+                      return false;
+                    };
+
+                    // Check if any previous subcategory has filters
+                    const previousHasFilters = sortedSubcats.slice(0, index).some(getSubcatHasFilters);
+                    // Check if any previous subcategory is "All Items" (no filters)
+                    const previousHasAllItems = sortedSubcats.slice(0, index).some(sc => !getSubcatHasFilters(sc));
+
+                    // If previous has filters, this one needs filters too
+                    const needsFilter = index > 0 && previousHasFilters;
+                    // Can only be "All Items" if it's the first or if no previous is "All Items"
+                    const canBeAllItems = index === 0 || !previousHasAllItems;
+
+                    return (
+                      <SubcategoryItem
+                        key={subcat.id}
+                        subcat={subcat}
+                        onUpdate={(updates) => updateSubcategory(subcat.id, updates)}
+                        onDelete={() => deleteSubcategory(subcat.id)}
+                        isDragOver={dragOverSubcat === subcat.id}
+                        onDragStart={() => setDraggedSubcat(subcat.id)}
+                        onDragOver={(e) => { e.preventDefault(); setDragOverSubcat(subcat.id); }}
+                        onDragLeave={() => setDragOverSubcat(null)}
+                        onDrop={() => {
+                          if (draggedSubcat && draggedSubcat !== subcat.id) {
+                            reorderSubcategory(draggedSubcat, subcat.id);
+                          }
+                          setDraggedSubcat(null);
+                          setDragOverSubcat(null);
+                        }}
+                        onDragEnd={() => {
+                          setDraggedSubcat(null);
+                          setDragOverSubcat(null);
+                        }}
+                        needsFilter={needsFilter}
+                        canBeAllItems={canBeAllItems}
+                      />
+                    );
+                  })}
               </div>
             ) : (
               <small className="no-subcategories">No subcategories. Extension-based subfolders will be used if "Sub" is checked.</small>
@@ -662,7 +696,7 @@ const FolderItem = ({
     onUpdate({
       ...folder,
       categories: categories.map((c) =>
-        c.type === type ? { ...c, filters } : c
+        c.type === type ? { ...c, filters, keywords: undefined } : c
       ),
     });
   };
@@ -1250,6 +1284,44 @@ export const App = () => {
           )}
         </section>
 
+        <section className="action-section">
+          <button
+            className={`btn-organize ${status === "organizing" ? "loading" : ""}`}
+            onClick={handleOrganize}
+            disabled={status === "organizing"}
+          >
+            {status === "organizing" ? "Organizing..." : "🗂️ ORGANIZE ALL"}
+          </button>
+          <button className="btn-reset" onClick={handleReset}>
+            Reset to Default
+          </button>
+        </section>
+
+        {
+          result && (
+            <section className={`result-section ${result.success ? "success" : "error"}`}>
+              {result.success ? (
+                <>
+                  <h3>✅ Organization Complete!</h3>
+                  <div className="result-stats">
+                    {result.movedItems.map((item) => (
+                      <p key={item.folderId}>
+                        📁 {item.folderName}: <strong>{item.count}</strong>
+                      </p>
+                    ))}
+                    <p>⏭️ Skipped: <strong>{result.skipped}</strong></p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <h3>❌ Error</h3>
+                  <p>{result.error}</p>
+                </>
+              )}
+            </section>
+          )
+        }
+
         {/* Batch Rename Section */}
         <section className="batch-rename-section">
           <h2 onClick={() => setShowBatchRename(!showBatchRename)}>
@@ -1430,44 +1502,6 @@ export const App = () => {
             </div>
           )}
         </section>
-
-        <section className="action-section">
-          <button
-            className={`btn-organize ${status === "organizing" ? "loading" : ""}`}
-            onClick={handleOrganize}
-            disabled={status === "organizing"}
-          >
-            {status === "organizing" ? "Organizing..." : "🗂️ ORGANIZE ALL"}
-          </button>
-          <button className="btn-reset" onClick={handleReset}>
-            Reset to Default
-          </button>
-        </section>
-
-        {
-          result && (
-            <section className={`result-section ${result.success ? "success" : "error"}`}>
-              {result.success ? (
-                <>
-                  <h3>✅ Organization Complete!</h3>
-                  <div className="result-stats">
-                    {result.movedItems.map((item) => (
-                      <p key={item.folderId}>
-                        📁 {item.folderName}: <strong>{item.count}</strong>
-                      </p>
-                    ))}
-                    <p>⏭️ Skipped: <strong>{result.skipped}</strong></p>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <h3>❌ Error</h3>
-                  <p>{result.error}</p>
-                </>
-              )}
-            </section>
-          )
-        }
       </div >
     </div >
   );
