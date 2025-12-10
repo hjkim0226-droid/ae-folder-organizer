@@ -28,6 +28,8 @@ interface CategoryConfig {
   detectSequences?: boolean;
   keywords?: string[];
   subcategories?: SubcategoryConfig[];
+  enableLabelColor?: boolean;  // 라벨 컬러 활성화
+  labelColor?: number;  // AE 라벨 컬러 인덱스 (1-16)
 }
 
 
@@ -46,6 +48,8 @@ interface SubcategoryConfig {
   filters?: SubcategoryFilter[];  // New unified filter system
   keywordRequired?: boolean;
   createSubfolders?: boolean;
+  enableLabelColor?: boolean;  // 라벨 컬러 활성화
+  labelColor?: number;  // AE 라벨 컬러 인덱스 (1-16)
 }
 
 interface ExceptionRule {
@@ -61,6 +65,7 @@ interface OrganizerConfig {
   exceptions: ExceptionRule[];
   settings?: {
     deleteEmptyFolders: boolean;
+    applyFolderLabelColor?: boolean;  // 폴더 자체에 라벨 컬러 적용 여부
   };
 }
 
@@ -427,19 +432,35 @@ export const getSelectedItems = (): ItemInfo[] => {
   const project = app.project;
   const items: ItemInfo[] = [];
   const selection = project.selection;
+  const addedIds: { [id: number]: boolean } = {};  // 중복 방지
+
+  // 폴더 내 아이템을 재귀적으로 수집하는 헬퍼 함수
+  const collectItemsFromFolder = (folder: FolderItem): void => {
+    for (let i = 1; i <= folder.numItems; i++) {
+      const child = folder.item(i);
+      if (child instanceof FolderItem) {
+        collectItemsFromFolder(child);  // 하위 폴더 재귀 탐색
+      } else if (!addedIds[child.id]) {
+        let itemType = "unknown";
+        if (child instanceof CompItem) itemType = "comp";
+        else if (child instanceof FootageItem) itemType = "footage";
+        items.push({ id: child.id, name: child.name, type: itemType });
+        addedIds[child.id] = true;
+      }
+    }
+  };
 
   for (let i = 0; i < selection.length; i++) {
     const item = selection[i];
-    if (!(item instanceof FolderItem)) {
+    if (item instanceof FolderItem) {
+      // 폴더가 선택되면 내부 아이템들을 모두 수집
+      collectItemsFromFolder(item);
+    } else if (!addedIds[item.id]) {
       let itemType = "unknown";
       if (item instanceof CompItem) itemType = "comp";
       else if (item instanceof FootageItem) itemType = "footage";
-
-      items.push({
-        id: item.id,
-        name: item.name,
-        type: itemType,
-      });
+      items.push({ id: item.id, name: item.name, type: itemType });
+      addedIds[item.id] = true;
     }
   }
 
@@ -520,9 +541,17 @@ export const getProjectStats = (): ProjectStats => {
         stats.sequences++;
       } else {
         const ext = getFileExtension(item.name);
-        if (AUDIO_EXTENSIONS.indexOf(ext) !== -1) {
+        let isAudio = false;
+        let isImage = false;
+        for (let e = 0; e < AUDIO_EXTENSIONS.length; e++) {
+          if (AUDIO_EXTENSIONS[e] === ext) { isAudio = true; break; }
+        }
+        for (let e = 0; e < IMAGE_EXTENSIONS.length; e++) {
+          if (IMAGE_EXTENSIONS[e] === ext) { isImage = true; break; }
+        }
+        if (isAudio) {
           stats.audio++;
-        } else if (IMAGE_EXTENSIONS.indexOf(ext) !== -1) {
+        } else if (isImage) {
           stats.images++;
         } else {
           stats.footage++;
@@ -538,8 +567,8 @@ export const getProjectStats = (): ProjectStats => {
  * Main organize function with config
  */
 export const organizeProject = (configJson: string, itemIdsJson?: string): OrganizeResult => {
-  const config: OrganizerConfig = JSON.parse(configJson);
-  const itemIds: number[] | null = itemIdsJson ? JSON.parse(itemIdsJson) : null;
+  const config: OrganizerConfig = JSON.parse(configJson) as OrganizerConfig;
+  const itemIds: number[] | null = itemIdsJson ? JSON.parse(itemIdsJson) as number[] : null;
 
   const result: OrganizeResult = {
     success: true,
@@ -557,7 +586,10 @@ export const organizeProject = (configJson: string, itemIdsJson?: string): Organ
     app.beginUndoGroup("AE Folder Organizer");
 
     const project = app.project;
-    const folderNames = config.folders.map(function (f) { return f.name; });
+    const folderNames: string[] = [];
+    for (let fn = 0; fn < config.folders.length; fn++) {
+      folderNames.push(config.folders[fn].name);
+    }
 
     // Create all folders first (sorted by order)
     const sortedFolders = config.folders.slice().sort(function (a, b) { return a.order - b.order; });
@@ -598,7 +630,11 @@ export const organizeProject = (configJson: string, itemIdsJson?: string): Organ
 
       // If specific items requested, filter
       if (itemIds !== null) {
-        if (itemIds.indexOf(item.id) === -1) continue;
+        let found = false;
+        for (let idIdx = 0; idIdx < itemIds.length; idIdx++) {
+          if (itemIds[idIdx] === item.id) { found = true; break; }
+        }
+        if (!found) continue;
       }
 
       itemsToProcess.push(item);
@@ -609,6 +645,7 @@ export const organizeProject = (configJson: string, itemIdsJson?: string): Organ
       const item = itemsToProcess[i];
       let targetFolderId: string | null = null;
       let targetSubfolder: string | null = null;
+      let labelColorToApply: number | null = null;  // 라벨 컬러 추적 (우선순위: 서브카테고리 > 카테고리 > 폴더)
 
       // 1. Check render folders first
       for (let j = 0; j < config.folders.length; j++) {
@@ -704,6 +741,11 @@ export const organizeProject = (configJson: string, itemIdsJson?: string): Organ
 
               targetFolderId = selectedMapping.folderId;
 
+              // 카테고리 라벨 컬러 체크 (폴더보다 우선)
+              if (selectedMapping.config.enableLabelColor && selectedMapping.config.labelColor) {
+                labelColorToApply = selectedMapping.config.labelColor;
+              }
+
               // Create numbered category subfolder
               const orderPrefix = (selectedMapping.order < 10 ? "0" : "") + selectedMapping.order;
               const numberedCategoryName = orderPrefix + "_" + categoryType;
@@ -731,6 +773,11 @@ export const organizeProject = (configJson: string, itemIdsJson?: string): Organ
                   // Create subcategory subfolder
                   const subPrefix = (matchedSubcat.order < 10 ? "0" : "") + matchedSubcat.order;
                   targetSubfolder = numberedCategoryName + "/" + subPrefix + "_" + matchedSubcat.name;
+
+                  // 서브카테고리 라벨 컬러 체크 (가장 높은 우선순위)
+                  if (matchedSubcat.enableLabelColor && matchedSubcat.labelColor) {
+                    labelColorToApply = matchedSubcat.labelColor;
+                  }
                 } else if (sortedSubcats.length >= 2) {
                   // No match and 2+ subcategories = use Others fallback
                   const othersName = generateOthersFolderName(sortedSubcats.length);
@@ -771,12 +818,17 @@ export const organizeProject = (configJson: string, itemIdsJson?: string): Organ
         item.parentFolder = targetFolder;
         moveCounts[targetFolderId] = (moveCounts[targetFolderId] || 0) + 1;
 
-        // Apply label color if enabled for this folder
-        for (let f = 0; f < config.folders.length; f++) {
-          const fc = config.folders[f];
-          if (fc.id === targetFolderId && fc.enableLabelColor && fc.labelColor) {
-            item.label = fc.labelColor;
-            break;
+        // Apply label color (우선순위: 서브카테고리 > 카테고리 > 폴더)
+        if (labelColorToApply !== null) {
+          item.label = labelColorToApply;
+        } else {
+          // 폴더 라벨 컬러 체크 (가장 낮은 우선순위)
+          for (let f = 0; f < config.folders.length; f++) {
+            const fc = config.folders[f];
+            if (fc.id === targetFolderId && fc.enableLabelColor && fc.labelColor) {
+              item.label = fc.labelColor;
+              break;
+            }
           }
         }
       } else {

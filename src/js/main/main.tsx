@@ -26,6 +26,8 @@ interface CategoryConfig {
   filters?: SubcategoryFilter[];  // New unified filter system
   needsKeyword?: boolean;  // True when this is a duplicate category requiring keywords
   subcategories?: SubcategoryConfig[];  // Subcategory layers
+  enableLabelColor?: boolean;  // 라벨 컬러 활성화
+  labelColor?: number;  // AE 라벨 컬러 인덱스 (1-16)
 }
 
 interface SubcategoryFilter {
@@ -43,6 +45,8 @@ interface SubcategoryConfig {
   filters?: SubcategoryFilter[];  // New unified filter system
   keywordRequired?: boolean;
   createSubfolders?: boolean;
+  enableLabelColor?: boolean;  // 라벨 컬러 활성화
+  labelColor?: number;  // AE 라벨 컬러 인덱스 (1-16)
 }
 
 type CategoryType = "Comps" | "Footage" | "Images" | "Audio" | "Solids";
@@ -61,6 +65,7 @@ interface OrganizerConfig {
   settings: {
     deleteEmptyFolders: boolean;
     showStats: boolean;  // 소스 오버뷰 표시
+    applyFolderLabelColor: boolean;  // 폴더 자체에 라벨 컬러 적용 여부
   };
 }
 
@@ -129,6 +134,7 @@ const DEFAULT_CONFIG: VersionedConfig = {
   settings: {
     deleteEmptyFolders: true,
     showStats: true,  // 기본값: 표시
+    applyFolderLabelColor: false,  // 기본값: 폴더에는 컬러 미적용
   },
 };
 
@@ -136,6 +142,30 @@ const ALL_CATEGORIES: CategoryType[] = ["Comps", "Footage", "Images", "Audio", "
 
 // ===== Helper Functions =====
 const generateId = () => Math.random().toString(36).substring(2, 9);
+
+// AE Label Color to CSS Color mapping
+const getLabelColorCSS = (colorIndex: number | undefined): string | undefined => {
+  if (!colorIndex) return undefined;
+  const colors: { [key: number]: string } = {
+    1: '#ff0000',   // Red
+    2: '#ffc500',   // Yellow
+    3: '#ccff00',   // Green-Yellow
+    4: '#00ff00',   // Green
+    5: '#00ffcc',   // Cyan-Green
+    6: '#00ccff',   // Cyan
+    7: '#0066ff',   // Blue
+    8: '#6600ff',   // Purple
+    9: '#ff00ff',   // Magenta
+    10: '#ff6699',  // Pink
+    11: '#ff9933',  // Orange
+    12: '#996633',  // Brown
+    13: '#669999',  // Teal
+    14: '#999966',  // Olive
+    15: '#666699',  // Slate
+    16: '#996699',  // Plum
+  };
+  return colors[colorIndex];
+};
 
 const getAssignedCategories = (folders: FolderConfig[]): Map<CategoryType, string> => {
   const assigned = new Map<CategoryType, string>();
@@ -285,13 +315,19 @@ const SubcategoryItem = ({
           onDragEnd={onDragEnd}
           onClick={() => setIsExpanded(!isExpanded)}
         >
-          <span className="subcat-expand">{isExpanded ? "▼" : "▶"}</span>
+          <span
+            className="subcat-expand"
+            style={subcat.enableLabelColor ? { color: getLabelColorCSS(subcat.labelColor) } : undefined}
+          >
+            {isExpanded ? "▼" : "▶"}
+          </span>
           <input
             type="text"
             className="subcat-name"
             value={subcat.name}
             onChange={(e) => onUpdate({ name: e.target.value })}
             onClick={(e) => e.stopPropagation()}
+            style={subcat.enableLabelColor ? { color: getLabelColorCSS(subcat.labelColor) } : undefined}
           />
           {hasFilters && <span className="subcat-tag-count">🏷️{filters.length}</span>}
         </div>
@@ -342,6 +378,29 @@ const SubcategoryItem = ({
               }
             }}
           />
+          {/* Label Color Section */}
+          <div className="subcat-label-color">
+            <label className="label-color-option">
+              <input
+                type="checkbox"
+                checked={subcat.enableLabelColor || false}
+                onChange={(e) => onUpdate({ enableLabelColor: e.target.checked, labelColor: subcat.labelColor })}
+              />
+              <span>🎨 Label Color</span>
+            </label>
+            {subcat.enableLabelColor && (
+              <div className="label-color-picker">
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16].map((colorIdx) => (
+                  <button
+                    key={colorIdx}
+                    className={`color-swatch color-${colorIdx} ${subcat.labelColor === colorIdx ? "selected" : ""}`}
+                    onClick={() => onUpdate({ enableLabelColor: true, labelColor: colorIdx })}
+                    title={`Color ${colorIdx}`}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -356,6 +415,7 @@ const DraggableCategory = ({
   onToggleSubfolders,
   onUpdateFilters,
   onUpdateSubcategories,
+  onUpdateLabelColor,
   isDragOver,
   dragHandlers,
 }: {
@@ -365,6 +425,7 @@ const DraggableCategory = ({
   onToggleSubfolders: () => void;
   onUpdateFilters: (filters: SubcategoryFilter[]) => void;
   onUpdateSubcategories: (subcategories: SubcategoryConfig[]) => void;
+  onUpdateLabelColor: (enable: boolean, color?: number) => void;
   isDragOver: boolean;
   dragHandlers: {
     onDragStart: (e: React.DragEvent, type: CategoryType) => void;
@@ -499,9 +560,19 @@ const DraggableCategory = ({
         >
           {/* Solids 외에만 펼침 아이콘 표시 */}
           {category.type !== "Solids" && (
-            <span className="category-expand">{isExpanded ? "▼" : "▶"}</span>
+            <span
+              className="category-expand"
+              style={category.enableLabelColor ? { color: getLabelColorCSS(category.labelColor) } : undefined}
+            >
+              {isExpanded ? "▼" : "▶"}
+            </span>
           )}
-          <span className="category-name">{category.type}</span>
+          <span
+            className="category-name"
+            style={category.enableLabelColor ? { color: getLabelColorCSS(category.labelColor) } : undefined}
+          >
+            {category.type}
+          </span>
           {hasFilters && <span className="keyword-badge">🔑</span>}
           {hasSubcategories && <span className="subcategory-badge">📂{category.subcategories?.length}</span>}
           {duplicateKeywords && duplicateKeywords.length > 0 && (
@@ -576,6 +647,30 @@ const DraggableCategory = ({
               />
             </div>
           )}
+
+          {/* Label Color Section */}
+          <div className="label-color-section">
+            <label className="label-color-option">
+              <input
+                type="checkbox"
+                checked={category.enableLabelColor || false}
+                onChange={(e) => onUpdateLabelColor(e.target.checked, category.labelColor)}
+              />
+              <span>🎨 Apply Label Color</span>
+            </label>
+            {category.enableLabelColor && (
+              <div className="label-color-picker">
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16].map((colorIdx) => (
+                  <button
+                    key={colorIdx}
+                    className={`color-swatch color-${colorIdx} ${category.labelColor === colorIdx ? "selected" : ""}`}
+                    onClick={() => onUpdateLabelColor(true, colorIdx)}
+                    title={`Color ${colorIdx}`}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
 
           {/* Subcategories Section */}
           <div className="subcategories-section">
@@ -744,6 +839,16 @@ const FolderItem = ({
     });
   };
 
+  const updateCategoryLabelColor = (type: CategoryType, enableLabelColor: boolean, labelColor?: number) => {
+    const categories = folder.categories || [];
+    onUpdate({
+      ...folder,
+      categories: categories.map((c) =>
+        c.type === type ? { ...c, enableLabelColor, labelColor } : c
+      ),
+    });
+  };
+
   const categoryDragHandlers = {
     onDragStart: (e: React.DragEvent, type: CategoryType) => {
       setDraggedCategory(type);
@@ -898,6 +1003,7 @@ const FolderItem = ({
                         onToggleSubfolders={() => toggleSubfolders(cat.type)}
                         onUpdateFilters={(filters) => updateFilters(cat.type, filters)}
                         onUpdateSubcategories={(subcats) => updateSubcategories(cat.type, subcats)}
+                        onUpdateLabelColor={(enable, color) => updateCategoryLabelColor(cat.type, enable, color)}
                         isDragOver={dragOverCategory === cat.type}
                         dragHandlers={{
                           ...categoryDragHandlers,
@@ -1243,7 +1349,7 @@ export const App = () => {
       <div className="container">
         <header className="header">
           <h1>📁 AE Folder Organizer</h1>
-          <span className="version">v1.12.4</span>
+          <span className="version">v1.12.5</span>
         </header>
 
         {stats && config.settings.showStats !== false && (
@@ -1525,6 +1631,17 @@ export const App = () => {
                   })}
                 />
                 <span>Delete empty folders after organizing</span>
+              </label>
+              <label className="setting-item">
+                <input
+                  type="checkbox"
+                  checked={config.settings.applyFolderLabelColor || false}
+                  onChange={(e) => setConfig({
+                    ...config,
+                    settings: { ...config.settings, applyFolderLabelColor: e.target.checked }
+                  })}
+                />
+                <span>Apply label color to folders</span>
               </label>
               <div className="config-actions">
                 <button
