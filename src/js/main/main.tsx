@@ -1240,7 +1240,7 @@ export const App = () => {
       <div className="container">
         <header className="header">
           <h1>📁 AE Folder Organizer</h1>
-          <span className="version">v1.12.2</span>
+          <span className="version">v1.12.3</span>
         </header>
 
         {stats && (

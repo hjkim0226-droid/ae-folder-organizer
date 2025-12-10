@@ -633,19 +633,50 @@ export const organizeProject = (configJson: string, itemIdsJson?: string): Organ
         const categoryType = getItemCategory(item, detectSequences);
 
         if (categoryType !== null) {
-          // Handle "Sequences" - only create subfolder if createSubfolders is enabled
+          // Handle "Sequences" - check subcategory filters first, then fallback to Sequences folder
           if (categoryType === "Sequences" && item instanceof FootageItem) {
             if (footageMappings && footageMappings.length > 0) {
               targetFolderId = footageMappings[0].folderId;
               const orderPrefix = (footageMappings[0].order < 10 ? "0" : "") + footageMappings[0].order;
+              const numberedCategoryName = orderPrefix + "_Footage";
 
-              // Only create Sequences subfolder if createSubfolders is checked
-              if (footageMappings[0].config.createSubfolders) {
-                const seqType = getSequenceType(item); // e.g., "EXR Sequence"
-                targetSubfolder = orderPrefix + "_Footage/Sequences/" + seqType;
+              // Check subcategories first - sequences can match subcategory filters
+              const subcats = footageMappings[0].config.subcategories;
+              let matchedSubcat: SubcategoryConfig | null = null;
+
+              if (subcats && subcats.length > 0) {
+                // Sort by order
+                const sortedSubcats = subcats.slice().sort(function (a: SubcategoryConfig, b: SubcategoryConfig) {
+                  return a.order - b.order;
+                });
+
+                // Find matching subcategory
+                for (let s = 0; s < sortedSubcats.length; s++) {
+                  if (matchSubcategory(item, sortedSubcats[s])) {
+                    matchedSubcat = sortedSubcats[s];
+                    break;
+                  }
+                }
+
+                if (matchedSubcat) {
+                  // Use matched subcategory
+                  const subPrefix = (matchedSubcat.order < 10 ? "0" : "") + matchedSubcat.order;
+                  targetSubfolder = numberedCategoryName + "/" + subPrefix + "_" + matchedSubcat.name;
+                } else if (footageMappings[0].config.createSubfolders) {
+                  // No match + createSubfolders = Sequences folder
+                  const seqType = getSequenceType(item); // e.g., "EXR Sequence"
+                  targetSubfolder = numberedCategoryName + "/Sequences/" + seqType;
+                } else {
+                  // No filters, no subfolder = just Footage
+                  targetSubfolder = numberedCategoryName;
+                }
+              } else if (footageMappings[0].config.createSubfolders) {
+                // No subcategories defined, but createSubfolders = Sequences folder
+                const seqType = getSequenceType(item);
+                targetSubfolder = numberedCategoryName + "/Sequences/" + seqType;
               } else {
                 // Just put in Footage folder without sequence subfolder
-                targetSubfolder = orderPrefix + "_Footage";
+                targetSubfolder = numberedCategoryName;
               }
             }
           } else {

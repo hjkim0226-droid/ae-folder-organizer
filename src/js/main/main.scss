@@ -991,7 +991,7 @@
 .subcategory-item {
   display: flex;
   align-items: center;
-  gap: 6px;
+  justify-content: space-between;
   padding: 6px 8px;
   background: rgba(0, 0, 0, 0.2);
   border-radius: 4px;
