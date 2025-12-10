@@ -60,6 +60,7 @@ interface OrganizerConfig {
   renderCompIds: number[];
   settings: {
     deleteEmptyFolders: boolean;
+    showStats: boolean;  // 소스 오버뷰 표시
   };
 }
 
@@ -127,6 +128,7 @@ const DEFAULT_CONFIG: VersionedConfig = {
   renderCompIds: [],
   settings: {
     deleteEmptyFolders: true,
+    showStats: true,  // 기본값: 표시
   },
 };
 
@@ -993,6 +995,7 @@ export const App = () => {
   const [stats, setStats] = useState<ProjectStats | null>(null);
   const [isDraggingExternal, setIsDraggingExternal] = useState(false);
   const [showExceptions, setShowExceptions] = useState(false);
+  const [showFolders, setShowFolders] = useState(true);  // 기본값: 펼침
   const [showSettings, setShowSettings] = useState(false);
   const [showBatchRename, setShowBatchRename] = useState(false);
   const [renameItems, setRenameItems] = useState<{ id: number; name: string; type: string }[]>([]);
@@ -1240,10 +1243,10 @@ export const App = () => {
       <div className="container">
         <header className="header">
           <h1>📁 AE Folder Organizer</h1>
-          <span className="version">v1.12.3</span>
+          <span className="version">v1.12.4</span>
         </header>
 
-        {stats && (
+        {stats && config.settings.showStats !== false && (
           <section className="stats-section">
             <div className="stats-grid">
               <div className="stat-item">
@@ -1267,34 +1270,40 @@ export const App = () => {
         )}
 
         <section className="folders-section">
-          <h2>▼ Folder Structure</h2>
-          <div className="folder-list">
-            {config.folders.map((folder, index) => {
-              const normalFolders = config.folders.filter((f) => !f.isRenderFolder && f.id !== "system");
-              const isFirstNormal = !folder.isRenderFolder && folder.id !== "system" &&
-                normalFolders.indexOf(folder) === 0;
-              const isLastNormal = !folder.isRenderFolder && folder.id !== "system" &&
-                normalFolders.indexOf(folder) === normalFolders.length - 1;
+          <h2 onClick={() => setShowFolders(!showFolders)} style={{ cursor: 'pointer' }}>
+            {showFolders ? "▼" : "▶"} Folder Structure
+          </h2>
+          {showFolders && (
+            <>
+              <div className="folder-list">
+                {config.folders.map((folder, index) => {
+                  const normalFolders = config.folders.filter((f) => !f.isRenderFolder && f.id !== "system");
+                  const isFirstNormal = !folder.isRenderFolder && folder.id !== "system" &&
+                    normalFolders.indexOf(folder) === 0;
+                  const isLastNormal = !folder.isRenderFolder && folder.id !== "system" &&
+                    normalFolders.indexOf(folder) === normalFolders.length - 1;
 
-              return (
-                <FolderItem
-                  key={folder.id}
-                  folder={folder}
-                  onUpdate={(f) => updateFolder(index, f)}
-                  onDelete={() => deleteFolder(index)}
-                  onMoveUp={() => moveFolder(index, -1)}
-                  onMoveDown={() => moveFolder(index, 1)}
-                  assignedCategories={assignedCategories}
-                  isFirst={isFirstNormal}
-                  isLast={isLastNormal}
-                  folders={config.folders}
-                />
-              );
-            })}
-          </div>
-          <button className="btn-add" onClick={addFolder}>
-            + Add Folder
-          </button>
+                  return (
+                    <FolderItem
+                      key={folder.id}
+                      folder={folder}
+                      onUpdate={(f) => updateFolder(index, f)}
+                      onDelete={() => deleteFolder(index)}
+                      onMoveUp={() => moveFolder(index, -1)}
+                      onMoveDown={() => moveFolder(index, 1)}
+                      assignedCategories={assignedCategories}
+                      isFirst={isFirstNormal}
+                      isLast={isLastNormal}
+                      folders={config.folders}
+                    />
+                  );
+                })}
+              </div>
+              <button className="btn-add" onClick={addFolder}>
+                + Add Folder
+              </button>
+            </>
+          )}
         </section>
 
         <section className="exceptions-section">
@@ -1495,6 +1504,17 @@ export const App = () => {
           </h2>
           {showSettings && (
             <div className="settings-list">
+              <label className="setting-item">
+                <input
+                  type="checkbox"
+                  checked={config.settings.showStats !== false}
+                  onChange={(e) => setConfig({
+                    ...config,
+                    settings: { ...config.settings, showStats: e.target.checked }
+                  })}
+                />
+                <span>Show source overview</span>
+              </label>
               <label className="setting-item">
                 <input
                   type="checkbox"
