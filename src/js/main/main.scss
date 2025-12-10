@@ -395,11 +395,10 @@
 .category-item {
   display: flex;
   align-items: center;
-  gap: 6px;
+  justify-content: space-between;
   padding: 4px 6px;
   background: rgba(255, 255, 255, 0.02);
   border-radius: 4px;
-  cursor: grab;
   transition: background 0.15s;
 }
 
@@ -407,26 +406,34 @@
   background: rgba(255, 255, 255, 0.05);
 }
 
-.category-item:active {
-  cursor: grabbing;
-}
-
 .category-item.disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
-.category-drag-handle {
-  font-size: 10px;
-  color: #555;
+/* 왼쪽 영역: 카테고리 이름 + 뱃지 (드래그 가능) */
+.category-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
   cursor: grab;
-  padding: 0 2px;
+}
+
+.category-left:active {
+  cursor: grabbing;
 }
 
 .category-name {
-  flex: 1;
   font-size: 11px;
   font-weight: 500;
+}
+
+/* 오른쪽 영역: Sub 체크박스 + 삭제버튼 */
+.category-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .assigned-hint {
@@ -480,12 +487,17 @@
   border-radius: 2px;
 }
 
-/* Category Keywords */
-.category-keywords {
-  padding: 8px 12px;
+/* Category Expanded Section */
+.category-expanded {
+  padding: 8px;
   background: rgba(0, 0, 0, 0.2);
   border-radius: 4px;
-  margin-left: 20px;
+  margin-top: 4px;
+}
+
+/* Category Keywords */
+.category-keywords {
+  margin-bottom: 8px;
 }
 
 .category-keywords label {
@@ -1120,11 +1132,10 @@
 
 /* Subcategory Tags Section */
 .subcat-tags-section {
-  margin-left: 12px;
-  padding: 8px 12px;
+  margin-top: 4px;
+  padding: 8px;
   background: rgba(0, 0, 0, 0.15);
   border-radius: 4px;
-  border-left: 2px solid rgba(255, 193, 7, 0.2);
 }
 
 .subcat-tags {
@@ -1361,3 +1372,131 @@
   background: linear-gradient(145deg, #4caf50, #388e3c);
   transform: translateY(-1px);
 }
+
+/* Label Color Section */
+.label-color-section {
+  margin-top: 12px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.label-color-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.label-color-option input {
+  accent-color: #ffc107;
+  width: 12px;
+  height: 12px;
+}
+
+.color-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.color-swatch {
+  width: 20px;
+  height: 20px;
+  border: 2px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.color-swatch:hover {
+  transform: scale(1.15);
+}
+
+.color-swatch.selected {
+  border-color: #fff;
+  box-shadow: 0 0 4px rgba(255, 255, 255, 0.5);
+}
+
+/* After Effects Label Colors (approximate) */
+.color-1 {
+  background: #ff0000;
+}
+
+/* Red */
+.color-2 {
+  background: #ffc500;
+}
+
+/* Yellow */
+.color-3 {
+  background: #ccff00;
+}
+
+/* Green-Yellow */
+.color-4 {
+  background: #00ff00;
+}
+
+/* Green */
+.color-5 {
+  background: #00ffcc;
+}
+
+/* Cyan-Green */
+.color-6 {
+  background: #00ccff;
+}
+
+/* Cyan */
+.color-7 {
+  background: #0066ff;
+}
+
+/* Blue */
+.color-8 {
+  background: #6600ff;
+}
+
+/* Purple */
+.color-9 {
+  background: #ff00ff;
+}
+
+/* Magenta */
+.color-10 {
+  background: #ff6699;
+}
+
+/* Pink */
+.color-11 {
+  background: #ff9933;
+}
+
+/* Orange */
+.color-12 {
+  background: #996633;
+}
+
+/* Brown */
+.color-13 {
+  background: #669999;
+}
+
+/* Teal */
+.color-14 {
+  background: #999966;
+}
+
+/* Olive */
+.color-15 {
+  background: #666699;
+}
+
+/* Slate */
+.color-16 {
+  background: #996699;
+}
+
+/* Plum */

@@ -16,6 +16,8 @@ interface FolderConfig {
   renderKeywords?: string[];
   skipOrganization?: boolean;  // Skip further organization for items in this folder
   categories?: CategoryConfig[];
+  enableLabelColor?: boolean;  // 라벨 컬러 활성화
+  labelColor?: number;  // AE 라벨 컬러 인덱스 (1-16)
 }
 
 interface CategoryConfig {
@@ -28,13 +30,20 @@ interface CategoryConfig {
   subcategories?: SubcategoryConfig[];
 }
 
+
+interface SubcategoryFilter {
+  type: "ext" | "prefix" | "keyword";
+  value: string;
+}
+
 interface SubcategoryConfig {
   id: string;
   name: string;
   order: number;
-  filterType: "extension" | "keyword" | "all";
-  extensions?: string[];
-  keywords?: string[];
+  filterType: "extension" | "keyword" | "all";  // Legacy
+  extensions?: string[];  // Legacy
+  keywords?: string[];  // Legacy
+  filters?: SubcategoryFilter[];  // New unified filter system
   keywordRequired?: boolean;
   createSubfolders?: boolean;
 }
@@ -290,28 +299,54 @@ const matchesException = (item: Item, exception: ExceptionRule): boolean => {
 };
 
 /**
- * Match item to subcategory based on filterType
+ * Match item to subcategory based on filters (new system) or filterType (legacy)
  */
 const matchSubcategory = (item: Item, subcategory: SubcategoryConfig): boolean => {
-  // keywordRequired = true means no filtering
-  if (subcategory.keywordRequired) return false;
-
-  // all type matches everything
-  if (subcategory.filterType === "all") return true;
-
   const itemName = item.name.toLowerCase();
   const ext = getFileExtension(item.name);
 
-  if (subcategory.filterType === "extension" && subcategory.extensions) {
-    for (let i = 0; i < subcategory.extensions.length; i++) {
-      if (subcategory.extensions[i].toLowerCase() === ext) return true;
+  // New filter system - check filters array first
+  if (subcategory.filters && subcategory.filters.length > 0) {
+    for (let i = 0; i < subcategory.filters.length; i++) {
+      const filter = subcategory.filters[i];
+      if (filter.type === "ext") {
+        // Extension filter: .mp4, .mov, etc.
+        if (filter.value.toLowerCase() === ext) return true;
+      } else if (filter.type === "prefix") {
+        // Prefix filter: VFX_, BG_, etc.
+        if (itemName.indexOf(filter.value.toLowerCase()) === 0) return true;
+      } else if (filter.type === "keyword") {
+        // Keyword filter: fire, explosion, etc.
+        if (itemName.indexOf(filter.value.toLowerCase()) !== -1) return true;
+      }
     }
+    return false;  // Has filters but none matched
   }
 
-  if (subcategory.filterType === "keyword" && subcategory.keywords) {
-    for (let i = 0; i < subcategory.keywords.length; i++) {
-      const kw = subcategory.keywords[i];
-      if (kw && itemName.indexOf(kw.toLowerCase()) !== -1) return true;
+  // No filters = matches everything (acts as "All Items")
+  if (!subcategory.filters || subcategory.filters.length === 0) {
+    // Check legacy fields
+    if (subcategory.keywordRequired) return false;
+    if (subcategory.filterType === "all") return true;
+
+    // Legacy extension check
+    if (subcategory.filterType === "extension" && subcategory.extensions) {
+      for (let i = 0; i < subcategory.extensions.length; i++) {
+        if (subcategory.extensions[i].toLowerCase() === ext) return true;
+      }
+    }
+
+    // Legacy keyword check
+    if (subcategory.filterType === "keyword" && subcategory.keywords) {
+      for (let i = 0; i < subcategory.keywords.length; i++) {
+        const kw = subcategory.keywords[i];
+        if (kw && itemName.indexOf(kw.toLowerCase()) !== -1) return true;
+      }
+    }
+
+    // No filters and no legacy = match all
+    if (!subcategory.extensions && !subcategory.keywords && subcategory.filterType !== "extension" && subcategory.filterType !== "keyword") {
+      return true;
     }
   }
 
@@ -704,6 +739,15 @@ export const organizeProject = (configJson: string, itemIdsJson?: string): Organ
 
         item.parentFolder = targetFolder;
         moveCounts[targetFolderId] = (moveCounts[targetFolderId] || 0) + 1;
+
+        // Apply label color if enabled for this folder
+        for (let f = 0; f < config.folders.length; f++) {
+          const fc = config.folders[f];
+          if (fc.id === targetFolderId && fc.enableLabelColor && fc.labelColor) {
+            item.label = fc.labelColor;
+            break;
+          }
+        }
       } else {
         result.skipped++;
       }

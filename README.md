@@ -4,7 +4,7 @@ After Effects 프로젝트 패널에서 아이템을 자동으로 폴더별로 �
 
 ![After Effects](https://img.shields.io/badge/After%20Effects-2023+-9999FF?logo=adobeaftereffects)
 ![License](https://img.shields.io/badge/License-MIT-green)
-![Version](https://img.shields.io/badge/Version-1.11.0-blue)
+![Version](https://img.shields.io/badge/Version-1.12.0-blue)
 
 ## ✨ 주요 기능
 

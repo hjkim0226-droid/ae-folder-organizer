@@ -12,6 +12,8 @@ interface FolderConfig {
   renderKeywords?: string[];
   skipOrganization?: boolean;
   categories?: CategoryConfig[];
+  enableLabelColor?: boolean;  // 라벨 컬러 활성화
+  labelColor?: number;  // AE 라벨 컬러 인덱스 (1-16)
 }
 
 interface CategoryConfig {
@@ -95,7 +97,7 @@ const DEFAULT_CONFIG: VersionedConfig = {
       name: "Render",
       order: 0,
       isRenderFolder: true,
-      renderKeywords: ["_render", "_final", "_output", "_export", "RENDER_", "[RENDER]"],
+      renderKeywords: ["Render"],
       skipOrganization: true,
       categories: [],
     },
@@ -137,8 +139,10 @@ const getAssignedCategories = (folders: FolderConfig[]): Map<CategoryType, strin
   const assigned = new Map<CategoryType, string>();
   folders.forEach((folder) => {
     folder.categories?.forEach((cat) => {
-      // Skip categories with keywords - they can be duplicated across folders
-      if (cat.enabled && (!cat.keywords || cat.keywords.length === 0)) {
+      // Skip categories with filters - they can be duplicated across folders
+      const hasFilters = (cat.filters && cat.filters.length > 0) ||
+        (cat.keywords && cat.keywords.length > 0);
+      if (cat.enabled && !hasFilters) {
         assigned.set(cat.type, folder.id);
       }
     });
@@ -460,11 +464,6 @@ const DraggableCategory = ({
     <div className={`category-item-wrapper ${isDragOver ? "drag-over" : ""}`}>
       <div
         className="category-item"
-        draggable
-        onDragStart={(e) => {
-          e.stopPropagation();
-          dragHandlers.onDragStart(e, category.type);
-        }}
         onDragOver={(e) => {
           e.stopPropagation();
           e.preventDefault();
@@ -475,44 +474,65 @@ const DraggableCategory = ({
           e.stopPropagation();
           dragHandlers.onDrop(e, category.type);
         }}
-        onDragEnd={dragHandlers.onDragEnd}
       >
-        <div className="category-drag-handle">⋮⋮</div>
-        <span
-          className="category-name"
-          onClick={() => setIsExpanded(!isExpanded)}
-          style={{ cursor: "pointer" }}
+        {/* 왼쪽 영역: 드래그 가능 */}
+        <div
+          className="category-left"
+          draggable
+          onDragStart={(e) => {
+            e.stopPropagation();
+            dragHandlers.onDragStart(e, category.type);
+          }}
+          onDragEnd={dragHandlers.onDragEnd}
+          onClick={() => {
+            // Comps와 Solids는 펼침 기능 없음
+            if (category.type !== "Comps" && category.type !== "Solids") {
+              setIsExpanded(!isExpanded);
+            }
+          }}
         >
-          {isExpanded ? "▼" : "▶"} {category.type}
+          {/* Comps/Solids 외에만 펼침 아이콘 표시 */}
+          {category.type !== "Comps" && category.type !== "Solids" && (
+            <span className="category-expand">{isExpanded ? "▼" : "▶"}</span>
+          )}
+          <span className="category-name">{category.type}</span>
           {hasFilters && <span className="keyword-badge">🔑</span>}
           {hasSubcategories && <span className="subcategory-badge">📂{category.subcategories?.length}</span>}
           {duplicateKeywords && duplicateKeywords.length > 0 && (
             <span className="duplicate-warning" title={`Duplicate: ${duplicateKeywords.join(", ")}`}>⚠️</span>
           )}
-        </span>
-        <label className="subfolder-option">
-          <input
-            type="checkbox"
-            checked={category.createSubfolders}
-            onChange={(e) => {
+        </div>
+
+        {/* 오른쪽 영역: Sub 체크박스 + 삭제 */}
+        <div className="category-right">
+          {/* Comps와 Solids 외에만 Sub 체크박스 표시 */}
+          {category.type !== "Comps" && category.type !== "Solids" && (
+            <label className="subfolder-option">
+              <input
+                type="checkbox"
+                checked={category.createSubfolders}
+                onChange={(e) => {
+                  e.stopPropagation();
+                  onToggleSubfolders();
+                }}
+              />
+              <span>Sub</span>
+            </label>
+          )}
+          <button
+            className="category-delete"
+            onClick={(e) => {
               e.stopPropagation();
-              onToggleSubfolders();
+              onDelete();
             }}
-          />
-          <span>Sub</span>
-        </label>
-        <button
-          className="category-delete"
-          onClick={(e) => {
-            e.stopPropagation();
-            onDelete();
-          }}
-        >
-          ✕
-        </button>
+          >
+            ✕
+          </button>
+        </div>
       </div>
 
-      {isExpanded && (
+      {/* Comps와 Solids 외에만 펼침 영역 표시 */}
+      {isExpanded && category.type !== "Comps" && category.type !== "Solids" && (
         <div className="category-expanded">
           {/* Filters Section */}
           <div className="category-keywords">
@@ -655,9 +675,14 @@ const FolderItem = ({
     const categories = folder.categories || [];
     const maxOrder = Math.max(0, ...categories.map((c) => c.order));
 
-    // Check if this category exists in other folders (requires keyword differentiation)
-    const existsElsewhere = folders.some(
-      (f) => f.id !== folder.id && f.categories?.some((c) => c.type === type && c.enabled)
+    // Check if this category exists in other folders with filters (allows duplication)
+    const existsWithFilters = folders.some(
+      (f) => f.id !== folder.id && f.categories?.some((c) => {
+        if (c.type !== type || !c.enabled) return false;
+        const hasFilters = (c.filters && c.filters.length > 0) ||
+          (c.keywords && c.keywords.length > 0);
+        return hasFilters;
+      })
     );
 
     onUpdate({
@@ -670,7 +695,7 @@ const FolderItem = ({
           order: maxOrder + 1,
           createSubfolders: false,
           detectSequences: type === "Footage" || type === "Images",
-          needsKeyword: existsElsewhere,
+          needsKeyword: existsWithFilters,  // 다른 폴더에 필터가 있는 같은 카테고리가 있으면 필터 필수
         },
       ],
     });
@@ -923,6 +948,30 @@ const FolderItem = ({
               )}
             </div>
           )}
+
+          {/* Label Color Option - 모든 폴더에 적용 */}
+          <div className="label-color-section">
+            <label className="label-color-option">
+              <input
+                type="checkbox"
+                checked={folder.enableLabelColor || false}
+                onChange={(e) => onUpdate({ ...folder, enableLabelColor: e.target.checked })}
+              />
+              <span>🎨 Apply Label Color</span>
+            </label>
+            {folder.enableLabelColor && (
+              <div className="color-picker">
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16].map((colorIdx) => (
+                  <button
+                    key={colorIdx}
+                    className={`color-swatch color-${colorIdx} ${folder.labelColor === colorIdx ? "selected" : ""}`}
+                    onClick={() => onUpdate({ ...folder, labelColor: colorIdx })}
+                    title={`Label ${colorIdx}`}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -1185,7 +1234,7 @@ export const App = () => {
       <div className="container">
         <header className="header">
           <h1>📁 AE Folder Organizer</h1>
-          <span className="version">v1.11.0</span>
+          <span className="version">v1.12.0</span>
         </header>
 
         {stats && (
@@ -1285,15 +1334,15 @@ export const App = () => {
         </section>
 
         <section className="action-section">
+          <button className="btn-reset" onClick={handleReset}>
+            Reset to Default
+          </button>
           <button
             className={`btn-organize ${status === "organizing" ? "loading" : ""}`}
             onClick={handleOrganize}
             disabled={status === "organizing"}
           >
             {status === "organizing" ? "Organizing..." : "🗂️ ORGANIZE ALL"}
-          </button>
-          <button className="btn-reset" onClick={handleReset}>
-            Reset to Default
           </button>
         </section>
 
