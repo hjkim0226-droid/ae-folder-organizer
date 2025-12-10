@@ -1349,7 +1349,7 @@ export const App = () => {
       <div className="container">
         <header className="header">
           <h1>📁 AE Folder Organizer</h1>
-          <span className="version">v1.12.5</span>
+          <span className="version">v1.12.6</span>
         </header>
 
         {stats && config.settings.showStats !== false && (
