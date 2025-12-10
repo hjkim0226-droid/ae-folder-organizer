@@ -997,6 +997,19 @@
   border-radius: 4px;
 }
 
+/* 왼쪽 영역: 드래그 가능 */
+.subcat-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  cursor: grab;
+}
+
+.subcat-left:active {
+  cursor: grabbing;
+}
+
 .subcat-name {
   width: 70px;
   background: rgba(0, 0, 0, 0.3);
@@ -1010,6 +1023,13 @@
 .subcat-name:focus {
   outline: none;
   border-color: #ffc107;
+}
+
+/* 오른쪽 영역: Sub 체크박스 + 삭제 */
+.subcat-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .subcat-filter {
@@ -1069,15 +1089,18 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
+  position: relative;
 }
 
-.subcategory-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 8px;
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 4px;
+.subcategory-item-wrapper.drag-over::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -3px;
+  height: 3px;
+  background: #ffc107;
+  border-radius: 2px;
 }
 
 .subcat-sub-option {
@@ -1107,21 +1130,6 @@
   color: #555;
   cursor: grab;
   padding: 0 2px;
-}
-
-.subcategory-item.drag-over {
-  position: relative;
-}
-
-.subcategory-item.drag-over::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: -3px;
-  height: 3px;
-  background: #ffc107;
-  border-radius: 2px;
 }
 
 .subcat-tag-count {

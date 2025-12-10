@@ -271,37 +271,41 @@ const SubcategoryItem = ({
     <div className="subcategory-item-wrapper">
       <div
         className={`subcategory-item ${isDragOver ? "drag-over" : ""}`}
-        draggable
-        onDragStart={(e) => { e.stopPropagation(); e.dataTransfer.setData("text/subcategory", subcat.id); onDragStart(); }}
         onDragOver={(e) => { e.stopPropagation(); onDragOver(e); }}
         onDragLeave={onDragLeave}
         onDrop={(e) => { e.stopPropagation(); e.preventDefault(); onDrop(); }}
-        onDragEnd={onDragEnd}
       >
-        <span className="subcat-drag-handle">⋮⋮</span>
-        <span
-          className="subcat-expand"
+        {/* 왼쪽 영역: 드래그 가능 */}
+        <div
+          className="subcat-left"
+          draggable
+          onDragStart={(e) => { e.stopPropagation(); e.dataTransfer.setData("text/subcategory", subcat.id); onDragStart(); }}
+          onDragEnd={onDragEnd}
           onClick={() => setIsExpanded(!isExpanded)}
         >
-          {isExpanded ? "▼" : "▶"}
-        </span>
-        <input
-          type="text"
-          className="subcat-name"
-          value={subcat.name}
-          onChange={(e) => onUpdate({ name: e.target.value })}
-          onClick={(e) => e.stopPropagation()}
-        />
-        {hasFilters && <span className="subcat-tag-count">🏷️{filters.length}</span>}
-        <label className="subcat-sub-option" onClick={(e) => e.stopPropagation()}>
+          <span className="subcat-expand">{isExpanded ? "▼" : "▶"}</span>
           <input
-            type="checkbox"
-            checked={subcat.createSubfolders || false}
-            onChange={(e) => onUpdate({ createSubfolders: e.target.checked })}
+            type="text"
+            className="subcat-name"
+            value={subcat.name}
+            onChange={(e) => onUpdate({ name: e.target.value })}
+            onClick={(e) => e.stopPropagation()}
           />
-          <span>Sub</span>
-        </label>
-        <button className="subcat-delete" onClick={onDelete}>✕</button>
+          {hasFilters && <span className="subcat-tag-count">🏷️{filters.length}</span>}
+        </div>
+
+        {/* 오른쪽 영역: Sub 체크박스 + 삭제 */}
+        <div className="subcat-right">
+          <label className="subcat-sub-option" onClick={(e) => e.stopPropagation()}>
+            <input
+              type="checkbox"
+              checked={subcat.createSubfolders || false}
+              onChange={(e) => onUpdate({ createSubfolders: e.target.checked })}
+            />
+            <span>Sub</span>
+          </label>
+          <button className="subcat-delete" onClick={onDelete}>✕</button>
+        </div>
       </div>
 
       {isExpanded && (
@@ -1236,7 +1240,7 @@ export const App = () => {
       <div className="container">
         <header className="header">
           <h1>📁 AE Folder Organizer</h1>
-          <span className="version">v1.12.1</span>
+          <span className="version">v1.12.2</span>
         </header>
 
         {stats && (
