@@ -485,14 +485,14 @@ const DraggableCategory = ({
           }}
           onDragEnd={dragHandlers.onDragEnd}
           onClick={() => {
-            // Comps와 Solids는 펼침 기능 없음
-            if (category.type !== "Comps" && category.type !== "Solids") {
+            // Solids만 펼침 기능 없음
+            if (category.type !== "Solids") {
               setIsExpanded(!isExpanded);
             }
           }}
         >
-          {/* Comps/Solids 외에만 펼침 아이콘 표시 */}
-          {category.type !== "Comps" && category.type !== "Solids" && (
+          {/* Solids 외에만 펼침 아이콘 표시 */}
+          {category.type !== "Solids" && (
             <span className="category-expand">{isExpanded ? "▼" : "▶"}</span>
           )}
           <span className="category-name">{category.type}</span>
@@ -531,43 +531,45 @@ const DraggableCategory = ({
         </div>
       </div>
 
-      {/* Comps와 Solids 외에만 펼침 영역 표시 */}
-      {isExpanded && category.type !== "Comps" && category.type !== "Solids" && (
+      {/* Solids 외에는 펼침 영역 표시 (Comps는 서브카테고리만) */}
+      {isExpanded && category.type !== "Solids" && (
         <div className="category-expanded">
-          {/* Filters Section */}
-          <div className="category-keywords">
-            <div className="keyword-tags">
-              {category.needsKeyword && !hasFilters && (
-                <span className="keyword-tag required-tag">⚠ Filter Required</span>
-              )}
-              {!category.needsKeyword && !hasFilters && (
-                <span className="keyword-tag all-tag">All {category.type}</span>
-              )}
-              {filters.map((filter, idx) => (
-                <span
-                  key={idx}
-                  className={getTagClass(filter)}
-                  onClick={() => removeFilter(idx)}
-                >
-                  {getTagLabel(filter)} ×
-                </span>
-              ))}
-            </div>
-            <input
-              type="text"
-              placeholder=".mp4 / prefix:VFX_ / keyword"
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  const input = e.currentTarget;
-                  const value = input.value.trim();
-                  if (value) {
-                    addFilter(value);
-                    input.value = "";
+          {/* Filters Section - Comps 제외 */}
+          {category.type !== "Comps" && (
+            <div className="category-keywords">
+              <div className="keyword-tags">
+                {category.needsKeyword && !hasFilters && (
+                  <span className="keyword-tag required-tag">⚠ Filter Required</span>
+                )}
+                {!category.needsKeyword && !hasFilters && (
+                  <span className="keyword-tag all-tag">All {category.type}</span>
+                )}
+                {filters.map((filter, idx) => (
+                  <span
+                    key={idx}
+                    className={getTagClass(filter)}
+                    onClick={() => removeFilter(idx)}
+                  >
+                    {getTagLabel(filter)} ×
+                  </span>
+                ))}
+              </div>
+              <input
+                type="text"
+                placeholder=".mp4 / prefix:VFX_ / keyword"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    const input = e.currentTarget;
+                    const value = input.value.trim();
+                    if (value) {
+                      addFilter(value);
+                      input.value = "";
+                    }
                   }
-                }
-              }}
-            />
-          </div>
+                }}
+              />
+            </div>
+          )}
 
           {/* Subcategories Section */}
           <div className="subcategories-section">
@@ -628,7 +630,7 @@ const DraggableCategory = ({
                   })}
               </div>
             ) : (
-              <small className="no-subcategories">No subcategories. Extension-based subfolders will be used if "Sub" is checked.</small>
+              <small className="no-subcategories">No subcategories. {category.type !== "Comps" ? 'Extension-based subfolders will be used if "Sub" is checked.' : 'Add subcategories to organize comps.'}</small>
             )}
           </div>
         </div>
@@ -1234,7 +1236,7 @@ export const App = () => {
       <div className="container">
         <header className="header">
           <h1>📁 AE Folder Organizer</h1>
-          <span className="version">v1.12.0</span>
+          <span className="version">v1.12.1</span>
         </header>
 
         {stats && (
