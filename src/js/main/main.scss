@@ -1419,7 +1419,9 @@
 }
 
 .color-swatch:hover {
-  transform: scale(1.15);
+  transform: scale(1.2);
+  border-color: rgba(255, 255, 255, 0.8);
+  box-shadow: 0 0 8px currentColor;
 }
 
 .color-swatch.selected {
@@ -1427,84 +1429,72 @@
   box-shadow: 0 0 4px rgba(255, 255, 255, 0.5);
 }
 
-/* After Effects Label Colors (approximate) */
-.color-1 {
-  background: #ff0000;
+/* Label Colors - uses CSS variables with fallback defaults */
+:root {
+  --label-color-1: #ff0000;   /* Red */
+  --label-color-2: #ffc500;   /* Yellow */
+  --label-color-3: #ccff00;   /* Green-Yellow */
+  --label-color-4: #00ff00;   /* Green */
+  --label-color-5: #00ffcc;   /* Cyan-Green */
+  --label-color-6: #00ccff;   /* Cyan */
+  --label-color-7: #0066ff;   /* Blue */
+  --label-color-8: #6600ff;   /* Purple */
+  --label-color-9: #ff00ff;   /* Magenta */
+  --label-color-10: #ff6699;  /* Pink */
+  --label-color-11: #ff9933;  /* Orange */
+  --label-color-12: #996633;  /* Brown */
+  --label-color-13: #669999;  /* Teal */
+  --label-color-14: #999966;  /* Olive */
+  --label-color-15: #666699;  /* Slate */
+  --label-color-16: #996699;  /* Plum */
 }
 
-/* Red */
-.color-2 {
-  background: #ffc500;
+.color-1 { background: var(--label-color-1); color: var(--label-color-1); }
+.color-2 { background: var(--label-color-2); color: var(--label-color-2); }
+.color-3 { background: var(--label-color-3); color: var(--label-color-3); }
+.color-4 { background: var(--label-color-4); color: var(--label-color-4); }
+.color-5 { background: var(--label-color-5); color: var(--label-color-5); }
+.color-6 { background: var(--label-color-6); color: var(--label-color-6); }
+.color-7 { background: var(--label-color-7); color: var(--label-color-7); }
+.color-8 { background: var(--label-color-8); color: var(--label-color-8); }
+.color-9 { background: var(--label-color-9); color: var(--label-color-9); }
+.color-10 { background: var(--label-color-10); color: var(--label-color-10); }
+.color-11 { background: var(--label-color-11); color: var(--label-color-11); }
+.color-12 { background: var(--label-color-12); color: var(--label-color-12); }
+.color-13 { background: var(--label-color-13); color: var(--label-color-13); }
+.color-14 { background: var(--label-color-14); color: var(--label-color-14); }
+.color-15 { background: var(--label-color-15); color: var(--label-color-15); }
+.color-16 { background: var(--label-color-16); color: var(--label-color-16); }
+
+/* Error Toast */
+.error-toast {
+  position: fixed;
+  top: 50px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(244, 67, 54, 0.95);
+  color: #fff;
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  z-index: 1001;
+  cursor: pointer;
+  animation: slideDown 0.3s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
-/* Yellow */
-.color-3 {
-  background: #ccff00;
+.error-toast:hover {
+  background: rgba(244, 67, 54, 1);
 }
 
-/* Green-Yellow */
-.color-4 {
-  background: #00ff00;
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
 }
-
-/* Green */
-.color-5 {
-  background: #00ffcc;
-}
-
-/* Cyan-Green */
-.color-6 {
-  background: #00ccff;
-}
-
-/* Cyan */
-.color-7 {
-  background: #0066ff;
-}
-
-/* Blue */
-.color-8 {
-  background: #6600ff;
-}
-
-/* Purple */
-.color-9 {
-  background: #ff00ff;
-}
-
-/* Magenta */
-.color-10 {
-  background: #ff6699;
-}
-
-/* Pink */
-.color-11 {
-  background: #ff9933;
-}
-
-/* Orange */
-.color-12 {
-  background: #996633;
-}
-
-/* Brown */
-.color-13 {
-  background: #669999;
-}
-
-/* Teal */
-.color-14 {
-  background: #999966;
-}
-
-/* Olive */
-.color-15 {
-  background: #666699;
-}
-
-/* Slate */
-.color-16 {
-  background: #996699;
-}
-
-/* Plum */

@@ -3,8 +3,8 @@ import { version } from "./package.json";
 
 const config: CEP_Config = {
   version,
-  id: "com.aefolder.organizer", 
-  displayName: "AE Folder Organizer", 
+  id: "com.aefolder.organizer",
+  displayName: "Folder Organizer",
   symlink: "local",
   port: 3000,
   servePort: 5000,
@@ -12,7 +12,8 @@ const config: CEP_Config = {
   extensionManifestVersion: 6.0,
   requiredRuntimeVersion: 9.0,
   hosts: [
-    { name: "AEFT", version: "[0.0,99.9]" }, 
+    { name: "AEFT", version: "[0.0,99.9]" },   // After Effects
+    { name: "PPRO", version: "[0.0,99.9]" },   // Premiere Pro
   ],
 
   type: "Panel",
@@ -28,7 +29,7 @@ const config: CEP_Config = {
     {
       mainPath: "./main/index.html",
       name: "main",
-      panelDisplayName: "AE Folder Organizer", 
+      panelDisplayName: "Folder Organizer", 
       autoVisible: true,
       width: 600,
       height: 650,

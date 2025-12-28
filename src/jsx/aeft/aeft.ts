@@ -87,6 +87,15 @@ interface ProjectStats {
   folders: number;
 }
 
+// ===== Helper: Project Validation =====
+
+const validateProject = (): { valid: boolean; error?: string } => {
+  if (!app.project) {
+    return { valid: false, error: "No project open" };
+  }
+  return { valid: true };
+};
+
 // ===== Extension Categories =====
 
 const VIDEO_EXTENSIONS = ["mp4", "mov", "avi", "mkv", "webm", "m4v", "wmv", "flv", "mxf"];
@@ -429,6 +438,11 @@ interface ItemInfo {
 }
 
 export const getSelectedItems = (): ItemInfo[] => {
+  const validation = validateProject();
+  if (!validation.valid) {
+    return [];
+  }
+
   const project = app.project;
   const items: ItemInfo[] = [];
   const selection = project.selection;
@@ -482,6 +496,15 @@ interface RenameResult {
 }
 
 export const batchRenameItems = (requests: RenameRequest[]): RenameResult => {
+  const validation = validateProject();
+  if (!validation.valid) {
+    return {
+      success: false,
+      renamed: 0,
+      errors: [validation.error || "No project open"],
+    };
+  }
+
   const project = app.project;
   const result: RenameResult = {
     success: true,
@@ -514,6 +537,20 @@ export const batchRenameItems = (requests: RenameRequest[]): RenameResult => {
  * Get project statistics
  */
 export const getProjectStats = (): ProjectStats => {
+  const validation = validateProject();
+  if (!validation.valid) {
+    return {
+      totalItems: 0,
+      comps: 0,
+      footage: 0,
+      images: 0,
+      audio: 0,
+      sequences: 0,
+      solids: 0,
+      folders: 0,
+    };
+  }
+
   const project = app.project;
   const stats: ProjectStats = {
     totalItems: 0,
@@ -564,9 +601,59 @@ export const getProjectStats = (): ProjectStats => {
 };
 
 /**
+ * Get label colors from AE preferences
+ * Returns array of 16 hex color strings
+ */
+export const getLabelColors = (): string[] => {
+  const colors: string[] = [];
+
+  try {
+    // AE 24.0+ has app.project.labelColors (array of LabelColor objects)
+    // @ts-ignore
+    if (app.project && app.project.labelColors) {
+      // @ts-ignore
+      const labelColors = app.project.labelColors;
+      for (let i = 0; i < 16; i++) {
+        try {
+          // LabelColor has getValue() that returns [r, g, b] array (0-1 range)
+          // @ts-ignore
+          const rgb = labelColors[i];
+          if (rgb && rgb.length >= 3) {
+            const r = Math.round(rgb[0] * 255);
+            const g = Math.round(rgb[1] * 255);
+            const b = Math.round(rgb[2] * 255);
+            const hex = "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+            colors.push(hex);
+          } else {
+            colors.push("");
+          }
+        } catch (e) {
+          colors.push("");
+        }
+      }
+    }
+  } catch (e) {
+    // Return empty array on error
+  }
+
+  return colors;
+};
+
+/**
  * Main organize function with config
  */
 export const organizeProject = (configJson: string, itemIdsJson?: string): OrganizeResult => {
+  // Validate project first
+  const validation = validateProject();
+  if (!validation.valid) {
+    return {
+      success: false,
+      movedItems: [],
+      skipped: 0,
+      error: validation.error,
+    };
+  }
+
   const config: OrganizerConfig = JSON.parse(configJson) as OrganizerConfig;
   const itemIds: number[] | null = itemIdsJson ? JSON.parse(itemIdsJson) as number[] : null;
 
@@ -576,6 +663,9 @@ export const organizeProject = (configJson: string, itemIdsJson?: string): Organ
     skipped: 0,
   };
 
+  // Track undo group state
+  let undoGroupStarted = false;
+
   // Initialize move counts
   const moveCounts: { [key: string]: number } = {};
   for (let i = 0; i < config.folders.length; i++) {
@@ -584,6 +674,7 @@ export const organizeProject = (configJson: string, itemIdsJson?: string): Organ
 
   try {
     app.beginUndoGroup("AE Folder Organizer");
+    undoGroupStarted = true;
 
     const project = app.project;
     const folderNames: string[] = [];
@@ -858,7 +949,10 @@ export const organizeProject = (configJson: string, itemIdsJson?: string): Organ
   } catch (e: any) {
     result.success = false;
     result.error = e.toString();
-    try { app.endUndoGroup(); } catch (x) { }
+    // Only end undo group if it was successfully started
+    if (undoGroupStarted) {
+      try { app.endUndoGroup(); } catch (undoError) { /* ignore cleanup errors */ }
+    }
   }
 
   return result;

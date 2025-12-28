@@ -2,7 +2,8 @@
 
 import { ns } from "../shared/shared";
 
-import * as aeft from "./aeft/aeft"; 
+import * as aeft from "./aeft/aeft";
+import * as ppro from "./ppro/ppro"; 
 
 //@ts-ignore
 const host = typeof $ !== "undefined" ? $ : window;
@@ -59,19 +60,17 @@ switch (getAppNameSafely()) {
     host[ns] = aeft;
     break;
 
-  
-  
-  
-  
-  
-  
-  
-  }
+  case "premierepro":
+  case "premiereprobeta":
+    host[ns] = ppro;
+    break;
+}
 
 const empty = {};
 // prettier-ignore
 export type Scripts = typeof empty
-  & typeof aeft 
+  & typeof aeft
+  & typeof ppro
   ;
 
 // https://extendscript.docsforadobe.dev/interapplication-communication/bridgetalk-class.html?highlight=bridgetalk#appname
