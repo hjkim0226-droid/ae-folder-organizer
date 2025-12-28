@@ -49,6 +49,7 @@ function AppContent() {
   const [isDraggingExternal, setIsDraggingExternal] = useState(false);
   const [showExceptions, setShowExceptions] = useState(false);
   const [showFolders, setShowFolders] = useState(true);
+  const [showHeader, setShowHeader] = useState(false);  // 헤더 아코디언 (닫힘 기본)
   const [showSettings, setShowSettings] = useState(false);
   const [showBatchRename, setShowBatchRename] = useState(false);
   const [renameItems, setRenameItems] = useState<{ id: number; name: string; type: string }[]>([]);
@@ -277,10 +278,40 @@ function AppContent() {
       )}
 
       <div className="container">
-        <header className="header">
-          <h1>📁 Snap Organizer</h1>
-          <span className="version">v1.13.0</span>
-        </header>
+        {/* Organize Button - Always at Top */}
+        <section className="action-section top-action">
+          <button
+            className={`btn-organize ${status === "organizing" ? "loading" : ""}`}
+            onClick={handleOrganize}
+            disabled={status === "organizing"}
+          >
+            {status === "organizing" ? "Organizing..." : "🗂️ ORGANIZE ALL"}
+          </button>
+        </section>
+
+        {/* Result - Show immediately after action */}
+        {result && (
+          <section className={`result-section ${result.success ? "success" : "error"}`}>
+            {result.success ? (
+              <>
+                <h3>✅ Organization Complete!</h3>
+                <div className="result-stats">
+                  {result.movedItems.map((item) => (
+                    <p key={item.folderId}>
+                      📁 {item.folderName}: <strong>{item.count}</strong>
+                    </p>
+                  ))}
+                  <p>⏭️ Skipped: <strong>{result.skipped}</strong></p>
+                </div>
+              </>
+            ) : (
+              <>
+                <h3>❌ Error</h3>
+                <p>{result.error}</p>
+              </>
+            )}
+          </section>
+        )}
 
         {errorMessage && (
           <div className="error-toast" onClick={() => setErrorMessage(null)}>
@@ -288,8 +319,12 @@ function AppContent() {
           </div>
         )}
 
-        {stats && config.settings.showStats !== false && (
-          <section className="stats-section">
+        {/* Header Accordion - Collapsed by default */}
+        <section className="header-section">
+          <h2 onClick={() => setShowHeader(!showHeader)} style={{ cursor: 'pointer' }}>
+            {showHeader ? "▼" : "▶"} 📁 Snap Organizer <span className="version">v1.13.0</span>
+          </h2>
+          {showHeader && stats && (
             <div className="stats-grid">
               <div className="stat-item">
                 <span className="stat-value">{stats.comps}</span>
@@ -308,8 +343,8 @@ function AppContent() {
                 <span className="stat-label">Audio</span>
               </div>
             </div>
-          </section>
-        )}
+          )}
+        </section>
 
         <section className="folders-section">
           <h2 onClick={() => setShowFolders(!showFolders)} style={{ cursor: 'pointer' }}>
@@ -389,42 +424,6 @@ function AppContent() {
             </>
           )}
         </section>
-
-        <section className="action-section">
-          <button className="btn-reset" onClick={handleReset}>
-            Reset to Default
-          </button>
-          <button
-            className={`btn-organize ${status === "organizing" ? "loading" : ""}`}
-            onClick={handleOrganize}
-            disabled={status === "organizing"}
-          >
-            {status === "organizing" ? "Organizing..." : "🗂️ ORGANIZE ALL"}
-          </button>
-        </section>
-
-        {result && (
-          <section className={`result-section ${result.success ? "success" : "error"}`}>
-            {result.success ? (
-              <>
-                <h3>✅ Organization Complete!</h3>
-                <div className="result-stats">
-                  {result.movedItems.map((item) => (
-                    <p key={item.folderId}>
-                      📁 {item.folderName}: <strong>{item.count}</strong>
-                    </p>
-                  ))}
-                  <p>⏭️ Skipped: <strong>{result.skipped}</strong></p>
-                </div>
-              </>
-            ) : (
-              <>
-                <h3>❌ Error</h3>
-                <p>{result.error}</p>
-              </>
-            )}
-          </section>
-        )}
 
         {/* Batch Rename Section */}
         <section className="batch-rename-section">
@@ -571,6 +570,9 @@ function AppContent() {
                 <span>Apply label color to folders</span>
               </label>
               <div className="config-actions">
+                <button className="btn-reset" onClick={handleReset}>
+                  🔄 Reset to Default
+                </button>
                 <button
                   className="btn-export"
                   onClick={() => {
