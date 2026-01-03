@@ -23,6 +23,8 @@ const DEFAULT_STATS: ProjectStats = {
   sequences: 0,
   solids: 0,
   folders: 0,
+  missingFootage: 0,
+  unusedItems: 0,
 };
 
 export function useStats(autoRefresh = true): UseStatsReturn {
