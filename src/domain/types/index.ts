@@ -130,6 +130,23 @@ export interface ProjectStats {
   sequences: number;
   solids: number;
   folders: number;
+  // Health Check
+  missingFootage: number;
+  unusedItems: number;
+}
+
+// ===== Health Check Result =====
+
+export interface HealthCheckResult {
+  missingFootage: ItemInfo[];
+  unusedItems: ItemInfo[];
+}
+
+export interface IsolateResult {
+  success: boolean;
+  movedCount: number;
+  folderName: string;
+  error?: string;
 }
 
 // ===== Item Info (for batch operations) =====

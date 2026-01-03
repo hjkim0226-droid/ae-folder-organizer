@@ -4,7 +4,7 @@ After Effects 프로젝트 패널에서 아이템을 자동으로 폴더별로 �
 
 ![After Effects](https://img.shields.io/badge/After%20Effects-2023+-9999FF?logo=adobeaftereffects)
 ![License](https://img.shields.io/badge/License-MIT-green)
-![Version](https://img.shields.io/badge/Version-1.13.0-blue)
+![Version](https://img.shields.io/badge/Version-1.14.0-blue)
 
 ## 주요 기능
 
@@ -31,6 +31,11 @@ After Effects 프로젝트 패널에서 아이템을 자동으로 폴더별로 �
 ### 🎨 라벨 컬러 시스템
 - 폴더/카테고리/서브카테고리별 라벨 컬러 자동 적용
 - AE 라벨 컬러 1-16 지원
+
+### 🩺 Health Check
+- **Missing Footage 감지**: 연결 끊긴 푸티지 자동 감지 및 격리
+- **Unused Asset 감지**: 렌더 컴프 기준 depth 스캔으로 미사용 아이템 격리
+- Undo 지원 (Ctrl+Z)
 
 ### ⚙️ 커스터마이징
 - 폴더 구조 완전 커스터마이징

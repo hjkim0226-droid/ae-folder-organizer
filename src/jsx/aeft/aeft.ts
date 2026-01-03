@@ -534,7 +534,7 @@ export const batchRenameItems = (requests: RenameRequest[]): RenameResult => {
 };
 
 /**
- * Get project statistics
+ * Get project statistics including health check info
  */
 export const getProjectStats = (): ProjectStats => {
   const validation = validateProject();
@@ -548,6 +548,8 @@ export const getProjectStats = (): ProjectStats => {
       sequences: 0,
       solids: 0,
       folders: 0,
+      missingFootage: 0,
+      unusedItems: 0,
     };
   }
 
@@ -561,17 +563,35 @@ export const getProjectStats = (): ProjectStats => {
     sequences: 0,
     solids: 0,
     folders: 0,
+    missingFootage: 0,
+    unusedItems: 0,
   };
 
+  // Collect all used item IDs (for unused detection)
+  const usedItemIds: { [id: number]: boolean } = {};
+
+  // First pass: count items and detect missing footage
   for (let i = 1; i <= project.numItems; i++) {
     const item = project.item(i);
     stats.totalItems++;
 
     if (item instanceof CompItem) {
       stats.comps++;
+      // Mark all items used in this comp
+      for (let l = 1; l <= item.numLayers; l++) {
+        const layer = item.layer(l);
+        if (layer.source) {
+          usedItemIds[layer.source.id] = true;
+        }
+      }
     } else if (item instanceof FolderItem) {
       stats.folders++;
     } else if (item instanceof FootageItem) {
+      // Check for missing footage
+      if (item.footageMissing) {
+        stats.missingFootage++;
+      }
+
       if (isSolid(item)) {
         stats.solids++;
       } else if (isSequence(item)) {
@@ -597,7 +617,182 @@ export const getProjectStats = (): ProjectStats => {
     }
   }
 
+  // Second pass: count unused items (footage and comps not used anywhere)
+  for (let i = 1; i <= project.numItems; i++) {
+    const item = project.item(i);
+    if (item instanceof FolderItem) continue;
+
+    // Skip solids - they're usually intentionally unused
+    if (item instanceof FootageItem && isSolid(item)) continue;
+
+    if (!usedItemIds[item.id]) {
+      // Check if this comp is used in any other comp (deep check)
+      let isUsed = false;
+      if (item instanceof CompItem) {
+        // Comps might be render comps - check usedIn
+        // @ts-ignore - usedIn exists but might not be in types
+        if (item.usedIn && item.usedIn.length > 0) {
+          isUsed = true;
+        }
+      }
+      if (!isUsed) {
+        stats.unusedItems++;
+      }
+    }
+  }
+
   return stats;
+};
+
+// ===== Health Check Types =====
+
+interface IsolateResult {
+  success: boolean;
+  movedCount: number;
+  folderName: string;
+  error?: string;
+}
+
+/**
+ * Isolate missing footage items to _Missing folder
+ */
+export const isolateMissingFootage = (): IsolateResult => {
+  const validation = validateProject();
+  if (!validation.valid) {
+    return { success: false, movedCount: 0, folderName: "", error: validation.error };
+  }
+
+  const result: IsolateResult = {
+    success: true,
+    movedCount: 0,
+    folderName: "_Missing",
+  };
+
+  try {
+    app.beginUndoGroup("Isolate Missing Footage");
+
+    const project = app.project;
+    const missingFolder = getOrCreateRootFolder("_Missing");
+
+    for (let i = 1; i <= project.numItems; i++) {
+      const item = project.item(i);
+      if (item instanceof FootageItem && item.footageMissing) {
+        item.parentFolder = missingFolder;
+        result.movedCount++;
+      }
+    }
+
+    app.endUndoGroup();
+  } catch (e: any) {
+    result.success = false;
+    result.error = e.toString();
+  }
+
+  return result;
+};
+
+/**
+ * Get all items used by render comps (deep scan)
+ */
+const getUsedItemIds = (renderKeywords: string[]): { [id: number]: boolean } => {
+  const usedIds: { [id: number]: boolean } = {};
+  const project = app.project;
+
+  // Helper: recursively mark all used items from a comp
+  const markUsedItems = (comp: CompItem, visited: { [id: number]: boolean }) => {
+    if (visited[comp.id]) return;
+    visited[comp.id] = true;
+    usedIds[comp.id] = true;
+
+    for (let l = 1; l <= comp.numLayers; l++) {
+      const layer = comp.layer(l);
+      if (layer.source) {
+        usedIds[layer.source.id] = true;
+        // If source is a comp, recurse
+        if (layer.source instanceof CompItem) {
+          markUsedItems(layer.source, visited);
+        }
+      }
+    }
+  };
+
+  // Find render comps and trace their dependencies
+  for (let i = 1; i <= project.numItems; i++) {
+    const item = project.item(i);
+    if (item instanceof CompItem) {
+      const name = item.name.toLowerCase();
+      for (let k = 0; k < renderKeywords.length; k++) {
+        const keyword = trimStr(renderKeywords[k]).toLowerCase();
+        if (keyword && name.indexOf(keyword) !== -1) {
+          markUsedItems(item, {});
+          break;
+        }
+      }
+    }
+  }
+
+  return usedIds;
+};
+
+/**
+ * Isolate unused items to _Unused folder
+ * @param renderKeywords Keywords to identify render comps (e.g., ["_render", "_final"])
+ */
+export const isolateUnusedAssets = (renderKeywordsJson: string): IsolateResult => {
+  const validation = validateProject();
+  if (!validation.valid) {
+    return { success: false, movedCount: 0, folderName: "", error: validation.error };
+  }
+
+  const renderKeywords: string[] = JSON.parse(renderKeywordsJson);
+
+  const result: IsolateResult = {
+    success: true,
+    movedCount: 0,
+    folderName: "_Unused",
+  };
+
+  try {
+    app.beginUndoGroup("Isolate Unused Assets");
+
+    const project = app.project;
+    const unusedFolder = getOrCreateRootFolder("_Unused");
+    const usedIds = getUsedItemIds(renderKeywords);
+
+    // Collect items to move (avoid modifying while iterating)
+    const itemsToMove: Item[] = [];
+
+    for (let i = 1; i <= project.numItems; i++) {
+      const item = project.item(i);
+
+      // Skip folders
+      if (item instanceof FolderItem) continue;
+
+      // Skip solids (usually intentionally unused)
+      if (item instanceof FootageItem && isSolid(item)) continue;
+
+      // Skip items already in _Unused or _Missing folders
+      if (item.parentFolder && (item.parentFolder.name === "_Unused" || item.parentFolder.name === "_Missing")) continue;
+
+      // If not used, mark for moving
+      if (!usedIds[item.id]) {
+        itemsToMove.push(item);
+      }
+    }
+
+    // Move items
+    for (let i = 0; i < itemsToMove.length; i++) {
+      itemsToMove[i].parentFolder = unusedFolder;
+      result.movedCount++;
+    }
+
+    app.endUndoGroup();
+  } catch (e: any) {
+    result.success = false;
+    result.error = e.toString();
+  }
+
+  return result;
 };
 
 /**

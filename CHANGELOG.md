@@ -1,5 +1,20 @@
 # Changelog
 
+## [v1.14.0] - 2026-01-03
+### Added
+- **Health Check 기능** - 프로젝트 상태 점검 시스템 추가
+  - Missing Footage 감지 및 격리 (`_Missing` 폴더로 이동)
+  - Unused Asset 감지 및 격리 (`_Unused` 폴더로 이동)
+  - 렌더 컴프 기준 depth 스캔으로 사용 여부 판단
+- **Health Check UI** - Overview 확장 방식의 아코디언 섹션
+  - Header에 health indicators 표시 (🔴 Missing, 🟡 Unused)
+  - Isolate Missing / Isolate Unused 버튼
+  - Undo 지원 (Ctrl+Z)
+
+### Improved
+- `ProjectStats` 타입에 `missingFootage`, `unusedItems` 필드 추가
+- ExtendScript에 재귀적 사용 아이템 추적 로직 구현
+
 ## [v1.13.0] - 2026-01-03
 ### Added
 - **전체 기능 문서화** - docs/FEATURES.md 생성
