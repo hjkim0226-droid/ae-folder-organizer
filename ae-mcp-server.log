@@ -1,0 +1,10 @@
+{"level":"info","message":"Using socket-based communication","timestamp":"2025-12-23T15:44:38.616Z"}
+{"level":"info","message":"Socket communicator initialized with prefix: temp_16698_mjir9xi0","timestamp":"2025-12-23T15:44:38.618Z"}
+{"level":"info","message":"Registered 92 tools","timestamp":"2025-12-23T15:44:38.619Z"}
+{"level":"info","message":"Adobe After Effects MCP server started in stdio mode","timestamp":"2025-12-23T15:44:38.619Z"}
+{"level":"info","message":"Expecting AE socket bridge on port 8090","timestamp":"2025-12-23T15:44:38.619Z"}
+{"capabilities":{"roots":{}},"clientInfo":{"name":"claude-code","version":"2.0.76"},"level":"info","message":"Initializing MCP server...","protocolVersion":"2025-11-25","timestamp":"2025-12-23T15:44:38.620Z"}
+{"level":"info","message":"Socket communicator initialized with prefix: claude-code_2_0_76_16698_mjir9xi4","timestamp":"2025-12-23T15:44:38.620Z"}
+{"level":"info","message":"Initialized with client prefix: claude-code_2_0_76_16698_mjir9xi4","timestamp":"2025-12-23T15:44:38.620Z"}
+{"level":"info","message":"Server initialized","timestamp":"2025-12-23T15:44:38.621Z"}
+{"level":"info","message":"Stdio connection closed","timestamp":"2025-12-23T15:44:38.629Z"}

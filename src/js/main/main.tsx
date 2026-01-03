@@ -21,7 +21,6 @@ import type {
   FolderConfig,
   OrganizeResult,
   ProjectStats,
-  IsolateResult,
   VersionedConfig
 } from "../../domain/types";
 
@@ -53,7 +52,6 @@ function AppContent() {
   const [showHeader, setShowHeader] = useState(false);  // 헤더 아코디언 (닫힘 기본)
   const [showSettings, setShowSettings] = useState(false);
   const [showBatchRename, setShowBatchRename] = useState(false);
-  const [showHealthCheck, setShowHealthCheck] = useState(false);  // Health Check 아코디언 (닫힘 기본)
   const [healthCheckLoading, setHealthCheckLoading] = useState<string | null>(null);
   const [renameItems, setRenameItems] = useState<{ id: number; name: string; type: string }[]>([]);
   const [renamePrefix, setRenamePrefix] = useState("");
@@ -322,13 +320,18 @@ function AppContent() {
           </div>
         )}
 
-        {/* Header Accordion - Collapsed by default */}
+        {/* Header Accordion (Overview + Health Check) - Collapsed by default */}
         <section className="header-section">
           <h2 onClick={() => setShowHeader(!showHeader)} style={{ cursor: 'pointer' }}>
-            {showHeader ? "▼" : "▶"} 📁 Snap Organizer <span className="version">v1.14.0</span>
+            {showHeader ? "▼" : "▶"} 📁 Overview
+            {stats && (stats.missingFootage > 0 || stats.unusedItems > 0) && (
+              <span className="health-warning-dot" style={{ marginLeft: '6px' }}>⚠️</span>
+            )}
+            <span className="version">v1.14.0</span>
           </h2>
           {showHeader && stats && (
-            <>
+            <div className="overview-content">
+              {/* Stats Grid */}
               <div className="stats-grid">
                 <div className="stat-item">
                   <span className="stat-value">{stats.comps}</span>
@@ -347,22 +350,75 @@ function AppContent() {
                   <span className="stat-label">Audio</span>
                 </div>
               </div>
-              {/* Health Check Indicators */}
-              {(stats.missingFootage > 0 || stats.unusedItems > 0) && (
-                <div className="health-indicators">
-                  {stats.missingFootage > 0 && (
-                    <span className="health-badge warning">
-                      🔴 Missing: {stats.missingFootage}
+
+              {/* Health Check Section - Integrated */}
+              <div className="health-section">
+                <div className="health-summary">
+                  <div className={`health-stat ${stats.missingFootage > 0 ? 'has-issue' : ''}`}>
+                    <span className={`health-value ${stats.missingFootage ? "warning" : "ok"}`}>
+                      {stats.missingFootage}
                     </span>
-                  )}
-                  {stats.unusedItems > 0 && (
-                    <span className="health-badge info">
-                      🟡 Unused: {stats.unusedItems}
+                    <span className="health-label">Missing</span>
+                  </div>
+                  <div className={`health-stat ${stats.unusedItems > 0 ? 'has-issue' : ''}`}>
+                    <span className={`health-value ${stats.unusedItems ? "info" : "ok"}`}>
+                      {stats.unusedItems}
                     </span>
-                  )}
+                    <span className="health-label">Unused</span>
+                  </div>
                 </div>
-              )}
-            </>
+                {(stats.missingFootage > 0 || stats.unusedItems > 0) && (
+                  <div className="health-actions">
+                    <button
+                      className="btn-health-action missing"
+                      disabled={!stats.missingFootage || healthCheckLoading !== null}
+                      onClick={async () => {
+                        setHealthCheckLoading("missing");
+                        try {
+                          const result = await evalTS("isolateMissingFootage");
+                          if (result && result.success) {
+                            alert(`Moved ${result.movedCount} missing items to "${result.folderName}" folder.\n(Ctrl+Z to undo)`);
+                            refreshStats();
+                          } else if (result) {
+                            showError(result.error || "Failed to isolate missing footage");
+                          }
+                        } catch (e) {
+                          showError("Failed to isolate missing footage");
+                          console.error(e);
+                        }
+                        setHealthCheckLoading(null);
+                      }}
+                    >
+                      {healthCheckLoading === "missing" ? "..." : "🔴 Isolate"}
+                    </button>
+                    <button
+                      className="btn-health-action unused"
+                      disabled={!stats.unusedItems || healthCheckLoading !== null}
+                      onClick={async () => {
+                        setHealthCheckLoading("unused");
+                        try {
+                          const renderFolder = config.folders.find(f => f.isRenderFolder);
+                          const renderKeywords = renderFolder?.renderKeywords || ["_render", "_final", "_output"];
+                          const result = await evalTS("isolateUnusedAssets", JSON.stringify(renderKeywords));
+                          if (result && result.success) {
+                            alert(`Moved ${result.movedCount} unused items to "${result.folderName}" folder.\n(Ctrl+Z to undo)`);
+                            refreshStats();
+                          } else if (result) {
+                            showError(result.error || "Failed to isolate unused assets");
+                          }
+                        } catch (e) {
+                          showError("Failed to isolate unused assets");
+                          console.error(e);
+                        }
+                        setHealthCheckLoading(null);
+                      }}
+                    >
+                      {healthCheckLoading === "unused" ? "..." : "🟡 Isolate"}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
           )}
         </section>
 
@@ -554,86 +610,6 @@ function AppContent() {
                   </button>
                 </>
               )}
-            </div>
-          )}
-        </section>
-
-        {/* Health Check Section */}
-        <section className="health-check-section">
-          <h2 onClick={() => setShowHealthCheck(!showHealthCheck)}>
-            {showHealthCheck ? "▼" : "▶"} 🩺 Health Check
-            {stats && (stats.missingFootage > 0 || stats.unusedItems > 0) && (
-              <span className="health-warning-dot">⚠️</span>
-            )}
-          </h2>
-          {showHealthCheck && (
-            <div className="health-check-content">
-              <div className="health-summary">
-                <div className="health-stat">
-                  <span className={`health-value ${stats?.missingFootage ? "warning" : "ok"}`}>
-                    {stats?.missingFootage || 0}
-                  </span>
-                  <span className="health-label">Missing Footage</span>
-                </div>
-                <div className="health-stat">
-                  <span className={`health-value ${stats?.unusedItems ? "info" : "ok"}`}>
-                    {stats?.unusedItems || 0}
-                  </span>
-                  <span className="health-label">Unused Items</span>
-                </div>
-              </div>
-              <div className="health-actions">
-                <button
-                  className="btn-health-action"
-                  disabled={!stats?.missingFootage || healthCheckLoading !== null}
-                  onClick={async () => {
-                    setHealthCheckLoading("missing");
-                    try {
-                      const result: IsolateResult = await evalTS("isolateMissingFootage");
-                      if (result.success) {
-                        alert(`Moved ${result.movedCount} missing items to "${result.folderName}" folder.\n(Ctrl+Z to undo)`);
-                        refreshStats();
-                      } else {
-                        showError(result.error || "Failed to isolate missing footage");
-                      }
-                    } catch (e) {
-                      showError("Failed to isolate missing footage");
-                      console.error(e);
-                    }
-                    setHealthCheckLoading(null);
-                  }}
-                >
-                  {healthCheckLoading === "missing" ? "Moving..." : "🔴 Isolate Missing"}
-                </button>
-                <button
-                  className="btn-health-action"
-                  disabled={!stats?.unusedItems || healthCheckLoading !== null}
-                  onClick={async () => {
-                    setHealthCheckLoading("unused");
-                    try {
-                      // Get render keywords from config
-                      const renderFolder = config.folders.find(f => f.isRenderFolder);
-                      const renderKeywords = renderFolder?.renderKeywords || ["_render", "_final", "_output"];
-                      const result: IsolateResult = await evalTS("isolateUnusedAssets", JSON.stringify(renderKeywords));
-                      if (result.success) {
-                        alert(`Moved ${result.movedCount} unused items to "${result.folderName}" folder.\n(Ctrl+Z to undo)`);
-                        refreshStats();
-                      } else {
-                        showError(result.error || "Failed to isolate unused assets");
-                      }
-                    } catch (e) {
-                      showError("Failed to isolate unused assets");
-                      console.error(e);
-                    }
-                    setHealthCheckLoading(null);
-                  }}
-                >
-                  {healthCheckLoading === "unused" ? "Moving..." : "🟡 Isolate Unused"}
-                </button>
-              </div>
-              <p className="health-note">
-                💡 Unused detection scans render comps (with keywords: _render, _final, _output) and traces all dependencies.
-              </p>
             </div>
           )}
         </section>
