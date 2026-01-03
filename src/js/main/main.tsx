@@ -293,6 +293,7 @@ function AppContent() {
         {/* Result - Show immediately after action */}
         {result && (
           <section className={`result-section ${result.success ? "success" : "error"}`}>
+            <button className="result-close" onClick={() => setResult(null)}>✕</button>
             {result.success ? (
               <>
                 <h3>✅ Organization Complete!</h3>
