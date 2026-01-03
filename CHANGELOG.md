@@ -1,5 +1,27 @@
 # Changelog
 
+## [v1.13.0] - 2026-01-03
+### Added
+- **전체 기능 문서화** - docs/FEATURES.md 생성
+- **개발자 가이드** - docs/DEVELOPMENT.md 생성
+- **README 개선** - 문서 링크 및 프로젝트 구조 추가
+
+### Improved
+- 문서 구조 정리 및 한국어/영어 혼용 개선
+
+## [v1.12.6] - 2025-12-31
+### Fixed
+- 버전 동기화 및 안정성 개선
+
+## [v1.11.0] - 2025-12-24
+### Added
+- **라벨 컬러 시스템** - 폴더/카테고리/서브카테고리별 라벨 컬러 지정
+- AE 라벨 컬러 1-16 지원
+- 라벨 컬러 우선순위: 서브카테고리 > 카테고리 > 폴더
+
+### Improved
+- 설정 파일 버전 5로 업그레이드
+
 ## [v1.10.2] - 2025-12-09
 ### Fixed
 - **Main category filter deletion** - Single filter can now be deleted properly
