@@ -1,10 +1,12 @@
 /**
- * AE Folder Organizer - Main Application
+ * Snap Organizer - Main Application
  * CEP Extension for organizing After Effects / Premiere Pro project items
  */
 
 import { useEffect, useState } from "react";
 import { subscribeBackgroundColor, evalTS } from "../lib/utils/bolt";
+import { version } from "../../shared/shared";
+import { Icon } from "@iconify/react";
 import "./main.scss";
 
 // Domain Layer
@@ -32,6 +34,7 @@ import {
   useConfig
 } from "../../ui/contexts";
 import { FolderItem } from "../../ui/components";
+import { useI18n } from "../../ui/hooks";
 
 // ===== App Content Component =====
 // This is the main app content that uses contexts
@@ -39,6 +42,7 @@ import { FolderItem } from "../../ui/components";
 function AppContent() {
   const { terms, hostApp } = useHostApp();
   const { config, setConfig, updateSettings, exportConfig, importConfig, resetConfig, addFolder: configAddFolder } = useConfig();
+  const { t: i18n, lang, setLanguage } = useI18n();
   const t = terms;
 
   // Local UI state
@@ -52,7 +56,6 @@ function AppContent() {
   const [showHeader, setShowHeader] = useState(false);  // 헤더 아코디언 (닫힘 기본)
   const [showSettings, setShowSettings] = useState(false);
   const [showBatchRename, setShowBatchRename] = useState(false);
-  const [healthCheckLoading, setHealthCheckLoading] = useState<string | null>(null);
   const [renameItems, setRenameItems] = useState<{ id: number; name: string; type: string }[]>([]);
   const [renamePrefix, setRenamePrefix] = useState("");
   const [renameSuffix, setRenameSuffix] = useState("");
@@ -157,6 +160,32 @@ function AppContent() {
       const organizeResult = await evalTS("organizeProject", JSON.stringify(extendScriptConfig));
 
       if (organizeResult.success) {
+        // Run isolate functions if enabled
+        const isolateErrors: string[] = [];
+        if (config.settings.isolateMissing) {
+          try {
+            await evalTS("isolateMissingFootage");
+          } catch (e) {
+            isolateErrors.push(i18n.isolateMissing);
+            console.error("Failed to isolate missing footage:", e);
+          }
+        }
+        if (config.settings.isolateUnused) {
+          try {
+            const renderFolder = config.folders.find(f => f.isRenderFolder);
+            const renderKeywords = renderFolder?.renderKeywords || ["Main", "Render"];
+            await evalTS("isolateUnusedAssets", JSON.stringify(renderKeywords));
+          } catch (e) {
+            isolateErrors.push(i18n.isolateUnused);
+            console.error("Failed to isolate unused assets:", e);
+          }
+        }
+
+        // Show isolate errors if any
+        if (isolateErrors.length > 0) {
+          showError(`${isolateErrors.join(", ")} failed`);
+        }
+
         setStatus("success");
         setResult(organizeResult);
         refreshStats();
@@ -261,7 +290,7 @@ function AppContent() {
   // ===== Render =====
 
   return (
-    <div className="app" style={{ backgroundColor: bgColor }}>
+    <div className={`app ${lang === 'ko' ? 'lang-ko' : 'lang-en'}`} style={{ backgroundColor: bgColor }}>
       {isDraggingExternal && (
         <div className="drop-overlay" onClick={() => setIsDraggingExternal(false)}>
           <div
@@ -272,7 +301,7 @@ function AppContent() {
               setIsDraggingExternal(false);
             }}
           >
-            <span className="drop-icon">📥</span>
+            <span className="drop-icon"><Icon icon="ph:download-fill" width={32} color="#4fc3f7" /></span>
             <span className="drop-text">Drop items here to organize</span>
           </div>
         </div>
@@ -286,7 +315,7 @@ function AppContent() {
             onClick={handleOrganize}
             disabled={status === "organizing"}
           >
-            {status === "organizing" ? "Organizing..." : "🗂️ ORGANIZE ALL"}
+            {status === "organizing" ? i18n.organizing : <><Icon icon="ph:folder-open-fill" width={16} color="#ffc107" style={{ marginRight: 6 }} /> {i18n.organizeAll}</>}
           </button>
         </section>
 
@@ -296,19 +325,19 @@ function AppContent() {
             <button className="result-close" onClick={() => setResult(null)}>✕</button>
             {result.success ? (
               <>
-                <h3>✅ Organization Complete!</h3>
+                <h3><Icon icon="ph:check-circle-fill" width={18} color="#4caf50" style={{ marginRight: 6 }} /> {i18n.organizationComplete}</h3>
                 <div className="result-stats">
                   {result.movedItems.map((item) => (
                     <p key={item.folderId}>
-                      📁 {item.folderName}: <strong>{item.count}</strong>
+                      <Icon icon="ph:folder-fill" width={14} color="#ffc107" style={{ marginRight: 4 }} /> {item.folderName}: <strong>{item.count}</strong>
                     </p>
                   ))}
-                  <p>⏭️ Skipped: <strong>{result.skipped}</strong></p>
+                  <p><Icon icon="ph:fast-forward-fill" width={14} color="#9e9e9e" style={{ marginRight: 4 }} /> {i18n.skipped}: <strong>{result.skipped}</strong></p>
                 </div>
               </>
             ) : (
               <>
-                <h3>❌ Error</h3>
+                <h3><Icon icon="ph:x-circle-fill" width={18} color="#f44336" style={{ marginRight: 6 }} /> {i18n.error}</h3>
                 <p>{result.error}</p>
               </>
             )}
@@ -317,38 +346,42 @@ function AppContent() {
 
         {errorMessage && (
           <div className="error-toast" onClick={() => setErrorMessage(null)}>
-            ⚠️ {errorMessage}
+            <Icon icon="ph:warning-fill" width={14} color="#ff9800" style={{ marginRight: 4 }} /> {errorMessage}
           </div>
         )}
 
         {/* Header Accordion (Overview + Health Check) - Collapsed by default */}
-        <section className="header-section">
+        <section className={`header-section accordion-card${!showHeader ? ' collapsed' : ''}`}>
           <h2 onClick={() => setShowHeader(!showHeader)} style={{ cursor: 'pointer' }}>
-            {showHeader ? "▼" : "▶"} 📁 Overview
+            {showHeader ? "▼" : "▶"} <Icon icon="ph:lightning-fill" width={16} color="#ffca28" style={{ marginRight: 4 }} /> Snap Organizer
             {stats && (stats.missingFootage > 0 || stats.unusedItems > 0) && (
-              <span className="health-warning-dot" style={{ marginLeft: '6px' }}>⚠️</span>
+              <Icon icon="ph:warning-fill" width={14} color="#ff9800" style={{ marginLeft: 6 }} />
             )}
-            <span className="version">v1.14.0</span>
+            <span className="version">v{version}</span>
           </h2>
           {showHeader && stats && (
             <div className="overview-content">
+              {/* Scan Button */}
+              <button className="btn-scan" onClick={refreshStats}>
+                <Icon icon="ph:arrows-clockwise-fill" width={14} style={{ marginRight: 4 }} /> {i18n.scanProject}
+              </button>
               {/* Stats Grid */}
               <div className="stats-grid">
                 <div className="stat-item">
                   <span className="stat-value">{stats.comps}</span>
-                  <span className="stat-label">{hostApp === "ppro" ? "Sequences" : "Comps"}</span>
+                  <span className="stat-label">{hostApp === "ppro" ? i18n.sequences : i18n.comps}</span>
                 </div>
                 <div className="stat-item">
                   <span className="stat-value">{stats.footage + stats.sequences}</span>
-                  <span className="stat-label">{hostApp === "ppro" ? "Clips" : "Footage"}</span>
+                  <span className="stat-label">{hostApp === "ppro" ? i18n.clips : i18n.footage}</span>
                 </div>
                 <div className="stat-item">
                   <span className="stat-value">{stats.images}</span>
-                  <span className="stat-label">Images</span>
+                  <span className="stat-label">{i18n.images}</span>
                 </div>
                 <div className="stat-item">
                   <span className="stat-value">{stats.audio}</span>
-                  <span className="stat-label">Audio</span>
+                  <span className="stat-label">{i18n.audio}</span>
                 </div>
               </div>
 
@@ -359,73 +392,23 @@ function AppContent() {
                     <span className={`health-value ${stats.missingFootage ? "warning" : "ok"}`}>
                       {stats.missingFootage}
                     </span>
-                    <span className="health-label">Missing</span>
+                    <span className="health-label">{i18n.missing}</span>
                   </div>
                   <div className={`health-stat ${stats.unusedItems > 0 ? 'has-issue' : ''}`}>
                     <span className={`health-value ${stats.unusedItems ? "info" : "ok"}`}>
                       {stats.unusedItems}
                     </span>
-                    <span className="health-label">Unused</span>
+                    <span className="health-label">{i18n.unused}</span>
                   </div>
                 </div>
-                {(stats.missingFootage > 0 || stats.unusedItems > 0) && (
-                  <div className="health-actions">
-                    <button
-                      className="btn-health-action missing"
-                      disabled={!stats.missingFootage || healthCheckLoading !== null}
-                      onClick={async () => {
-                        setHealthCheckLoading("missing");
-                        try {
-                          const result = await evalTS("isolateMissingFootage");
-                          if (result && result.success) {
-                            alert(`Moved ${result.movedCount} missing items to "${result.folderName}" folder.\n(Ctrl+Z to undo)`);
-                            refreshStats();
-                          } else if (result) {
-                            showError(result.error || "Failed to isolate missing footage");
-                          }
-                        } catch (e) {
-                          showError("Failed to isolate missing footage");
-                          console.error(e);
-                        }
-                        setHealthCheckLoading(null);
-                      }}
-                    >
-                      {healthCheckLoading === "missing" ? "..." : "🔴 Isolate"}
-                    </button>
-                    <button
-                      className="btn-health-action unused"
-                      disabled={!stats.unusedItems || healthCheckLoading !== null}
-                      onClick={async () => {
-                        setHealthCheckLoading("unused");
-                        try {
-                          const renderFolder = config.folders.find(f => f.isRenderFolder);
-                          const renderKeywords = renderFolder?.renderKeywords || ["_render", "_final", "_output"];
-                          const result = await evalTS("isolateUnusedAssets", JSON.stringify(renderKeywords));
-                          if (result && result.success) {
-                            alert(`Moved ${result.movedCount} unused items to "${result.folderName}" folder.\n(Ctrl+Z to undo)`);
-                            refreshStats();
-                          } else if (result) {
-                            showError(result.error || "Failed to isolate unused assets");
-                          }
-                        } catch (e) {
-                          showError("Failed to isolate unused assets");
-                          console.error(e);
-                        }
-                        setHealthCheckLoading(null);
-                      }}
-                    >
-                      {healthCheckLoading === "unused" ? "..." : "🟡 Isolate"}
-                    </button>
-                  </div>
-                )}
               </div>
             </div>
           )}
         </section>
 
-        <section className="folders-section">
+        <section className={`folders-section accordion-card${!showFolders ? ' collapsed' : ''}`}>
           <h2 onClick={() => setShowFolders(!showFolders)} style={{ cursor: 'pointer' }}>
-            {showFolders ? "▼" : "▶"} {t.folder} Structure
+            {showFolders ? "▼" : "▶"} <Icon icon="ph:folders-fill" width={16} color="#ffca28" style={{ marginRight: 4 }} /> {i18n.folderStructure}
           </h2>
           {showFolders && (
             <>
@@ -454,15 +437,15 @@ function AppContent() {
                 })}
               </div>
               <button className="btn-add" onClick={addFolder}>
-                + Add {t.folder}
+                + {i18n.addFolder}
               </button>
             </>
           )}
         </section>
 
-        <section className="exceptions-section">
+        <section className={`exceptions-section accordion-card${!showExceptions ? ' collapsed' : ''}`}>
           <h2 onClick={() => setShowExceptions(!showExceptions)}>
-            {showExceptions ? "▼" : "▶"} Exceptions
+            {showExceptions ? "▼" : "▶"} <Icon icon="ph:magic-wand-fill" width={16} color="#4dd0e1" style={{ marginRight: 4 }} /> {i18n.exceptions}
           </h2>
           {showExceptions && (
             <>
@@ -475,8 +458,8 @@ function AppContent() {
                         updateException(index, { ...ex, type: e.target.value as "nameContains" | "extension" })
                       }
                     >
-                      <option value="nameContains">Name contains</option>
-                      <option value="extension">Extension</option>
+                      <option value="nameContains">{i18n.nameContains}</option>
+                      <option value="extension">{i18n.extension}</option>
                     </select>
                     <input
                       type="text"
@@ -497,15 +480,15 @@ function AppContent() {
                   </div>
                 ))}
               </div>
-              <button className="btn-add" onClick={addException}>+ Add Exception</button>
+              <button className="btn-add" onClick={addException}>+ {i18n.addException}</button>
             </>
           )}
         </section>
 
         {/* Batch Rename Section */}
-        <section className="batch-rename-section">
+        <section className={`batch-rename-section accordion-card${!showBatchRename ? ' collapsed' : ''}`}>
           <h2 onClick={() => setShowBatchRename(!showBatchRename)}>
-            {showBatchRename ? "▼" : "▶"} 🔤 Batch Rename
+            {showBatchRename ? "▼" : "▶"} <Icon icon="ph:text-aa-fill" width={16} color="#a5d6a7" style={{ marginRight: 4 }} /> {i18n.batchRename}
           </h2>
           {showBatchRename && (
             <div className="batch-rename-content">
@@ -521,14 +504,14 @@ function AppContent() {
                   }
                 }}
               >
-                📂 Get Selected Items ({renameItems.length})
+                <Icon icon="ph:folder-open-fill" width={14} color="#ffc107" style={{ marginRight: 4 }} /> {i18n.getSelectedItems} ({renameItems.length})
               </button>
 
               {renameItems.length > 0 && (
                 <>
                   <div className="rename-options">
                     <div className="rename-row">
-                      <label>Prefix:</label>
+                      <label>{i18n.prefix}:</label>
                       <input
                         type="text"
                         value={renamePrefix}
@@ -537,7 +520,7 @@ function AppContent() {
                       />
                     </div>
                     <div className="rename-row">
-                      <label>Suffix:</label>
+                      <label>{i18n.suffix}:</label>
                       <input
                         type="text"
                         value={renameSuffix}
@@ -546,7 +529,7 @@ function AppContent() {
                       />
                     </div>
                     <div className="rename-row">
-                      <label>Find:</label>
+                      <label>{i18n.find}:</label>
                       <input
                         type="text"
                         value={renameFind}
@@ -555,7 +538,7 @@ function AppContent() {
                       />
                     </div>
                     <div className="rename-row">
-                      <label>Replace:</label>
+                      <label>{i18n.replace}:</label>
                       <input
                         type="text"
                         value={renameReplace}
@@ -566,7 +549,7 @@ function AppContent() {
                   </div>
 
                   <div className="rename-preview">
-                    <h4>Preview ({renameItems.length} items)</h4>
+                    <h4>{i18n.preview} ({renameItems.length} {i18n.items})</h4>
                     <div className="preview-list">
                       {renameItems.slice(0, 10).map((item) => {
                         let newName = item.name;
@@ -580,7 +563,7 @@ function AppContent() {
                           </div>
                         );
                       })}
-                      {renameItems.length > 10 && <div className="preview-more">...and {renameItems.length - 10} more</div>}
+                      {renameItems.length > 10 && <div className="preview-more">...{i18n.andMore} {renameItems.length - 10}{i18n.items}</div>}
                     </div>
                   </div>
 
@@ -596,10 +579,10 @@ function AppContent() {
                       try {
                         const renameResult = await evalTS("batchRenameItems", requests);
                         if (renameResult.success) {
-                          alert(`Renamed ${renameResult.renamed} items! (Ctrl+Z to undo)`);
+                          alert(`${renameResult.renamed}${i18n.items} ${i18n.renameSuccess} ${i18n.undoHint}`);
                           setRenameItems([]);
                         } else {
-                          alert(`Renamed ${renameResult.renamed} items with errors: ${renameResult.errors.join(", ")}`);
+                          alert(`${renameResult.renamed}${i18n.items} (errors: ${renameResult.errors.join(", ")})`);
                         }
                       } catch (e) {
                         showError("Rename failed");
@@ -607,7 +590,7 @@ function AppContent() {
                       }
                     }}
                   >
-                    ✓ Apply Rename
+                    <Icon icon="ph:check-fill" width={14} style={{ marginRight: 4 }} /> {i18n.applyRename}
                   </button>
                 </>
               )}
@@ -616,27 +599,19 @@ function AppContent() {
         </section>
 
         {/* Settings Section */}
-        <section className="settings-section">
+        <section className={`settings-section accordion-card${!showSettings ? ' collapsed' : ''}`}>
           <h2 onClick={() => setShowSettings(!showSettings)}>
-            {showSettings ? "▼" : "▶"} Settings
+            {showSettings ? "▼" : "▶"} <Icon icon="ph:gear-fill" width={16} color="#b0b0b0" style={{ marginRight: 4 }} /> {i18n.settings}
           </h2>
           {showSettings && (
             <div className="settings-list">
               <label className="setting-item">
                 <input
                   type="checkbox"
-                  checked={config.settings.showStats !== false}
-                  onChange={(e) => updateSettings({ showStats: e.target.checked })}
-                />
-                <span>Show source overview</span>
-              </label>
-              <label className="setting-item">
-                <input
-                  type="checkbox"
                   checked={config.settings.deleteEmptyFolders}
                   onChange={(e) => updateSettings({ deleteEmptyFolders: e.target.checked })}
                 />
-                <span>Delete empty folders after organizing</span>
+                <span>{i18n.deleteEmptyFolders}</span>
               </label>
               <label className="setting-item">
                 <input
@@ -644,11 +619,22 @@ function AppContent() {
                   checked={config.settings.applyFolderLabelColor || false}
                   onChange={(e) => updateSettings({ applyFolderLabelColor: e.target.checked })}
                 />
-                <span>Apply label color to folders</span>
+                <span>{i18n.applyLabelColor}</span>
+              </label>
+              <label className="setting-item language-select">
+                <span>{i18n.language}:</span>
+                <select
+                  value={config.settings.language || "auto"}
+                  onChange={(e) => setLanguage(e.target.value as "en" | "ko" | "auto")}
+                >
+                  <option value="auto">Auto</option>
+                  <option value="en">English</option>
+                  <option value="ko">한국어</option>
+                </select>
               </label>
               <div className="config-actions">
                 <button className="btn-reset" onClick={handleReset}>
-                  🔄 Reset to Default
+                  <Icon icon="ph:arrow-counter-clockwise-fill" width={14} style={{ marginRight: 4 }} /> {i18n.resetToDefault}
                 </button>
                 <button
                   className="btn-export"
@@ -658,12 +644,12 @@ function AppContent() {
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement("a");
                     a.href = url;
-                    a.download = "ae-folder-organizer-config.json";
+                    a.download = "snap-organizer-config.json";
                     a.click();
                     URL.revokeObjectURL(url);
                   }}
                 >
-                  📤 Export Config
+                  <Icon icon="ph:upload-fill" width={14} style={{ marginRight: 4 }} /> {i18n.exportConfig}
                 </button>
                 <button
                   className="btn-import"
@@ -684,7 +670,7 @@ function AppContent() {
                             }
                             imported.version = CONFIG_VERSION;
                             setConfig(imported);
-                            alert("Config imported successfully!");
+                            alert(i18n.configImported);
                           } catch {
                             showError("Failed to parse config file");
                           }
@@ -695,7 +681,7 @@ function AppContent() {
                     input.click();
                   }}
                 >
-                  📥 Import Config
+                  <Icon icon="ph:download-fill" width={14} style={{ marginRight: 4 }} /> {i18n.importConfig}
                 </button>
               </div>
             </div>
