@@ -632,6 +632,38 @@ function AppContent() {
               <label className="setting-item">
                 <input
                   type="checkbox"
+                  checked={config.settings.reloadBeforeOrganize || false}
+                  onChange={(e) => updateSettings({ reloadBeforeOrganize: e.target.checked })}
+                />
+                <span><Icon icon="ph:arrow-clockwise-bold" width={14} color="#81c784" style={{ marginRight: 4 }} /> {i18n.reloadFootage}</span>
+              </label>
+              <label className="setting-item">
+                <input
+                  type="checkbox"
+                  checked={config.settings.isolateMissing || false}
+                  onChange={(e) => updateSettings({ isolateMissing: e.target.checked })}
+                />
+                <span><Icon icon="ph:file-x-fill" width={14} color="#f44336" style={{ marginRight: 4 }} /> {i18n.isolateMissing}</span>
+              </label>
+              <label className="setting-item">
+                <input
+                  type="checkbox"
+                  checked={config.settings.isolateUnused || false}
+                  onChange={(e) => updateSettings({ isolateUnused: e.target.checked })}
+                />
+                <span><Icon icon="ph:archive-fill" width={14} color="#ffeb3b" style={{ marginRight: 4 }} /> {i18n.isolateUnused}</span>
+              </label>
+              <label className="setting-item">
+                <input
+                  type="checkbox"
+                  checked={config.settings.mergeDuplicates || false}
+                  onChange={(e) => updateSettings({ mergeDuplicates: e.target.checked })}
+                />
+                <span><Icon icon="ph:copy-fill" width={14} color="#4fc3f7" style={{ marginRight: 4 }} /> {i18n.mergeDuplicates}</span>
+              </label>
+              <label className="setting-item">
+                <input
+                  type="checkbox"
                   checked={config.settings.deleteEmptyFolders}
                   onChange={(e) => updateSettings({ deleteEmptyFolders: e.target.checked })}
                 />
