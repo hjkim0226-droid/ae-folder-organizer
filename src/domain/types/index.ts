@@ -91,6 +91,7 @@ export interface OrganizerSettings {
   isolateMissing?: boolean;
   isolateUnused?: boolean;
   mergeDuplicates?: boolean;
+  reloadBeforeOrganize?: boolean;
 }
 
 // ===== Organizer Config =====

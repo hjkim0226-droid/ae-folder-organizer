@@ -1165,6 +1165,87 @@ export const mergeDuplicateFootage = (): MergeDuplicatesResult => {
   return result;
 };
 
+// ===== Reload All Footage =====
+
+interface ReloadResult {
+  success: boolean;
+  reloadedCount: number;
+  error?: string;
+}
+
+/**
+ * Reload all footage items using AE's native reload command
+ * Command ID 2257 = "Reload Footage"
+ */
+export const reloadAllFootage = (): ReloadResult => {
+  const validation = validateProject();
+  if (!validation.valid) {
+    return { success: false, reloadedCount: 0, error: validation.error };
+  }
+
+  const result: ReloadResult = {
+    success: true,
+    reloadedCount: 0,
+  };
+
+  try {
+    const project = app.project;
+
+    // Collect all file-based footage items
+    const footageItems: FootageItem[] = [];
+    for (let i = 1; i <= project.numItems; i++) {
+      const item = project.item(i);
+      if (item instanceof FootageItem && !isSolid(item)) {
+        // Only reload file-based footage (not solids, not placeholders)
+        if (item.mainSource instanceof FileSource) {
+          footageItems.push(item);
+        }
+      }
+    }
+
+    if (footageItems.length === 0) {
+      return result; // No footage to reload
+    }
+
+    app.beginUndoGroup("Reload All Footage");
+
+    // Store current selection
+    const originalSelection = project.selection.slice();
+
+    // Reload each footage item
+    for (let i = 0; i < footageItems.length; i++) {
+      const item = footageItems[i];
+
+      // Select only this item
+      // First deselect all
+      for (let j = 1; j <= project.numItems; j++) {
+        project.item(j).selected = false;
+      }
+      // Select target item
+      item.selected = true;
+
+      // Execute Reload Footage command (ID: 2257)
+      app.executeCommand(2257);
+      result.reloadedCount++;
+    }
+
+    // Restore original selection
+    for (let j = 1; j <= project.numItems; j++) {
+      project.item(j).selected = false;
+    }
+    for (let i = 0; i < originalSelection.length; i++) {
+      originalSelection[i].selected = true;
+    }
+
+    app.endUndoGroup();
+  } catch (e: any) {
+    result.success = false;
+    result.error = e.toString();
+  }
+
+  return result;
+};
+
 /**
  * Get label colors from AE preferences
  * Returns array of 16 hex color strings

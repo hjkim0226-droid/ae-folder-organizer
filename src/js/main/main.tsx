@@ -156,6 +156,16 @@ function AppContent() {
     setResult(null);
 
     try {
+      // Reload all footage first if enabled
+      if (config.settings.reloadBeforeOrganize) {
+        try {
+          await evalTS("reloadAllFootage");
+        } catch (e) {
+          console.error("Failed to reload footage:", e);
+          // Continue with organize even if reload fails
+        }
+      }
+
       const extendScriptConfig = buildConfigForExtendScript();
       const organizeResult = await evalTS("organizeProject", JSON.stringify(extendScriptConfig));
 

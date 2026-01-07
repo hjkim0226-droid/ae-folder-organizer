@@ -99,6 +99,9 @@ export interface Translations {
   // Duplicate Detection
   duplicate: string;
   mergeDuplicates: string;
+
+  // Reload
+  reloadFootage: string;
 }
 
 const en: Translations = {
@@ -195,6 +198,9 @@ const en: Translations = {
   // Duplicate Detection
   duplicate: "Duplicate",
   mergeDuplicates: "Merge Duplicates",
+
+  // Reload
+  reloadFootage: "Reload All Footage",
 };
 
 const ko: Translations = {
@@ -291,6 +297,9 @@ const ko: Translations = {
   // Duplicate Detection
   duplicate: "중복",
   mergeDuplicates: "중복 아이템 병합",
+
+  // Reload
+  reloadFootage: "모든 푸티지 리로드",
 };
 
 const ja: Translations = {
@@ -387,6 +396,9 @@ const ja: Translations = {
   // Duplicate Detection
   duplicate: "重複",
   mergeDuplicates: "重複アイテムを統合",
+
+  // Reload
+  reloadFootage: "全フッテージを再読込",
 };
 
 const zh: Translations = {
@@ -483,6 +495,9 @@ const zh: Translations = {
   // Duplicate Detection
   duplicate: "重复",
   mergeDuplicates: "合并重复项",
+
+  // Reload
+  reloadFootage: "重新加载所有素材",
 };
 
 const zhTW: Translations = {
@@ -579,6 +594,9 @@ const zhTW: Translations = {
   // Duplicate Detection
   duplicate: "重複",
   mergeDuplicates: "合併重複項目",
+
+  // Reload
+  reloadFootage: "重新載入所有素材",
 };
 
 export const translations: Record<Language, Translations> = {

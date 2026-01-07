@@ -411,6 +411,16 @@ export function FolderItem({
                 />
                 <span><Icon icon="ph:copy-fill" width={14} color="#4fc3f7" style={{ marginRight: 4 }} /> {i18n.mergeDuplicates}</span>
               </label>
+              <label className="isolate-option">
+                <input
+                  type="checkbox"
+                  checked={config.settings.reloadBeforeOrganize || false}
+                  onChange={(e) =>
+                    updateSettings({ reloadBeforeOrganize: e.target.checked })
+                  }
+                />
+                <span><Icon icon="ph:arrow-clockwise-bold" width={14} color="#81c784" style={{ marginRight: 4 }} /> {i18n.reloadFootage}</span>
+              </label>
             </div>
           )}
         </div>
