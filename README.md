@@ -1,4 +1,4 @@
-# AE Folder Organizer
+# Snap Organizer
 
 After Effects 프로젝트 패널에서 아이템을 자동으로 폴더별로 정리하는 CEP 확장 프로그램입니다.
 
@@ -69,7 +69,7 @@ npm run zxp
 ## 🚀 사용법
 
 1. After Effects 실행
-2. `Window > Extensions > AE Folder Organizer` 열기
+2. `Window > Extensions > Snap Organizer` 열기
 3. 폴더 구조 설정 (선택사항)
 4. **🗂️ ORGANIZE ALL** 버튼 클릭
 

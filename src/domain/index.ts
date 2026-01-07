@@ -1,5 +1,5 @@
 /**
- * AE Folder Organizer - Domain Layer
+ * Snap Organizer - Domain Layer
  * Pure business logic, framework-agnostic
  */
 
@@ -11,3 +11,6 @@ export * from "./constants";
 
 // Models
 export * from "./models";
+
+// i18n
+export * from "./i18n";

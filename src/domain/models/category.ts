@@ -1,5 +1,5 @@
 /**
- * AE Folder Organizer - Category Models
+ * Snap Organizer - Category Models
  * Pure functions for category classification and management
  */
 

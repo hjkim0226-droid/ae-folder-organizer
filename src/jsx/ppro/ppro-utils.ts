@@ -1,5 +1,5 @@
 /**
- * Premiere Pro Folder Organizer - Utility Functions
+ * Premiere Pro Snap Organizer - Utility Functions
  * Handles Bin traversal and manipulation for Premiere Pro projects
  */
 

@@ -4,6 +4,7 @@
  */
 
 import { useState } from "react";
+import { Icon } from "@iconify/react";
 import { useHostApp } from "../../contexts";
 import type { SubcategoryConfig, SubcategoryFilter } from "../../../domain/types";
 
@@ -149,7 +150,7 @@ export function SubcategoryItem({
             style={labelColorStyle}
           />
           {hasFilters && (
-            <span className="subcat-tag-count">🏷️{filters.length}</span>
+            <span className="subcat-tag-count"><Icon icon="ph:tag-fill" width={12} color="#81c784" />{filters.length}</span>
           )}
         </div>
 
@@ -185,13 +186,13 @@ export function SubcategoryItem({
               </span>
             ))}
             {!hasFilters && needsFilter && (
-              <span className="subcat-tag warning-tag">⚠ Filter Required</span>
+              <span className="subcat-tag warning-tag"><Icon icon="ph:warning-fill" width={12} color="#ff9800" style={{ marginRight: 2 }} /> Filter Required</span>
             )}
             {!hasFilters && !needsFilter && canBeAllItems && (
-              <span className="subcat-tag all-tag">📁 All Items (no filter)</span>
+              <span className="subcat-tag all-tag"><Icon icon="ph:folder-fill" width={12} color="#4fc3f7" style={{ marginRight: 2 }} /> All Items (no filter)</span>
             )}
             {!hasFilters && !needsFilter && !canBeAllItems && (
-              <span className="subcat-tag warning-tag">⚠ Cannot be All Items</span>
+              <span className="subcat-tag warning-tag"><Icon icon="ph:warning-fill" width={12} color="#ff9800" style={{ marginRight: 2 }} /> Cannot be All Items</span>
             )}
           </div>
           <input
@@ -221,7 +222,7 @@ export function SubcategoryItem({
                   })
                 }
               />
-              <span>🎨 Label Color</span>
+              <span><Icon icon="ph:palette-fill" width={14} style={{ marginRight: 4 }} /> Label Color</span>
             </label>
             {subcat.enableLabelColor && (
               <div className="label-color-picker">

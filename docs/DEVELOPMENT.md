@@ -1,6 +1,6 @@
-# AE Folder Organizer - 개발자 가이드
+# Snap Organizer - 개발자 가이드
 
-이 문서는 AE Folder Organizer CEP 확장 프로그램의 개발 환경 설정, 아키텍처, 기여 방법을 설명합니다.
+이 문서는 Snap Organizer CEP 확장 프로그램의 개발 환경 설정, 아키텍처, 기여 방법을 설명합니다.
 
 ---
 
@@ -62,7 +62,7 @@ npm run dev
 npm run symlink
 ```
 
-After Effects를 재시작하고 `Window > Extensions > AE Folder Organizer`에서 패널을 열 수 있습니다.
+After Effects를 재시작하고 `Window > Extensions > Snap Organizer`에서 패널을 열 수 있습니다.
 
 ---
 

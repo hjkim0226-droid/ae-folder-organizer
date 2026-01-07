@@ -1,5 +1,5 @@
 /**
- * Premiere Pro Folder Organizer - ExtendScript Core Logic
+ * Premiere Pro Snap Organizer - ExtendScript Core Logic
  * Config-based bin organization for Premiere Pro projects
  */
 

@@ -1,4 +1,4 @@
-# AE Folder Organizer - 전체 기능 가이드
+# Snap Organizer - 전체 기능 가이드
 
 After Effects 프로젝트 패널 아이템 자동 정리 CEP 확장 프로그램의 모든 기능을 상세히 설명합니다.
 

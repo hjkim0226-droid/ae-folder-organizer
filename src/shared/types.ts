@@ -1,5 +1,5 @@
 /**
- * AE Folder Organizer - Type Definitions
+ * Snap Organizer - Type Definitions
  */
 
 // ===== Folder Configuration =====
@@ -86,7 +86,7 @@ export const DEFAULT_FOLDERS: FolderConfig[] = [
         name: "00_Render",
         order: 0,
         isRenderFolder: true,
-        renderKeywords: ["_render", "_final", "_output", "_export", "RENDER_", "[RENDER]"],
+        renderKeywords: ["Main", "Render"],
         categories: [],
     },
     {

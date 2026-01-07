@@ -1,5 +1,5 @@
 /**
- * AE Folder Organizer - Extension Constants
+ * Snap Organizer - Extension Constants
  * File extension arrays for category classification
  */
 

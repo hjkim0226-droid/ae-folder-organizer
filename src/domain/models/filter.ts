@@ -1,5 +1,5 @@
 /**
- * AE Folder Organizer - Filter Models
+ * Snap Organizer - Filter Models
  * Pure functions for filter matching and exception handling
  */
 

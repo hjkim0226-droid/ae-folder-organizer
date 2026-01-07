@@ -4,10 +4,13 @@
  */
 
 import { useState } from "react";
+import { Icon } from "@iconify/react";
 import { evalTS } from "../../../js/lib/utils/bolt";
 import { DraggableCategory } from "../DraggableCategory";
 import { findDuplicateKeywords, generateId } from "../../../domain";
 import { ALL_CATEGORIES } from "../../../domain/constants";
+import { useHostApp, useConfig } from "../../contexts";
+import { useI18n } from "../../hooks";
 import type {
   CategoryConfig,
   CategoryType,
@@ -50,6 +53,14 @@ export function FolderItem({
   const [isExpanded, setIsExpanded] = useState(true);
   const [draggedCategory, setDraggedCategory] = useState<CategoryType | null>(null);
   const [dragOverCategory, setDragOverCategory] = useState<DragOverTarget>(null);
+  const { getLabelColorCSS } = useHostApp();
+  const { t: i18n } = useI18n();
+  const { config, updateSettings } = useConfig();
+
+  // Label color style for folder header
+  const headerLabelStyle = folder.enableLabelColor && folder.labelColor
+    ? { color: getLabelColorCSS(folder.labelColor) }
+    : {};
 
   // ===== Category Management =====
 
@@ -196,11 +207,12 @@ export function FolderItem({
   return (
     <div className="folder-item">
       <div className="folder-header" onClick={() => setIsExpanded(!isExpanded)}>
-        <span className="folder-icon">{isExpanded ? "▼" : "▶"}</span>
-        <span className="folder-emoji">📁</span>
+        <span className="folder-icon" style={headerLabelStyle}>{isExpanded ? "▼" : "▶"}</span>
+        <span className="folder-emoji" style={headerLabelStyle}><Icon icon="ph:folder-fill" width={16} /></span>
         <input
           type="text"
           className="folder-name-input"
+          style={headerLabelStyle}
           value={folder.name}
           onClick={(e) => e.stopPropagation()}
           onChange={(e) => onUpdate({ ...folder, name: e.target.value })}
@@ -344,7 +356,7 @@ export function FolderItem({
                   onUpdate({ ...folder, enableLabelColor: e.target.checked })
                 }
               />
-              <span>🎨 Apply Label Color</span>
+              <span><Icon icon="ph:palette-fill" width={14} style={{ marginRight: 4 }} /> Apply Label Color</span>
             </label>
             {folder.enableLabelColor && (
               <div className="color-picker">
@@ -365,6 +377,32 @@ export function FolderItem({
               </div>
             )}
           </div>
+
+          {/* Isolate Options - System folder only */}
+          {isSystemFolder && (
+            <div className="isolate-options-section">
+              <label className="isolate-option">
+                <input
+                  type="checkbox"
+                  checked={config.settings.isolateMissing || false}
+                  onChange={(e) =>
+                    updateSettings({ isolateMissing: e.target.checked })
+                  }
+                />
+                <span><Icon icon="ph:file-x-fill" width={14} color="#f44336" style={{ marginRight: 4 }} /> {i18n.isolateMissing}</span>
+              </label>
+              <label className="isolate-option">
+                <input
+                  type="checkbox"
+                  checked={config.settings.isolateUnused || false}
+                  onChange={(e) =>
+                    updateSettings({ isolateUnused: e.target.checked })
+                  }
+                />
+                <span><Icon icon="ph:archive-fill" width={14} color="#ffeb3b" style={{ marginRight: 4 }} /> {i18n.isolateUnused}</span>
+              </label>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -379,6 +417,8 @@ interface RenderFolderSettingsProps {
 }
 
 function RenderFolderSettings({ folder, onUpdate }: RenderFolderSettingsProps) {
+  const { t: i18n } = useI18n();
+
   const handleGetSelectedComps = async () => {
     try {
       const names = await evalTS("getSelectedCompNames");
@@ -410,9 +450,9 @@ function RenderFolderSettings({ folder, onUpdate }: RenderFolderSettingsProps) {
     <div className="render-folder-settings">
       <div className="render-keywords">
         <div className="render-keywords-header">
-          <label>🔑 Keywords (auto-detect)</label>
+          <label><Icon icon="ph:key-fill" width={14} color="#ffc107" style={{ marginRight: 4 }} /> {i18n.keywordsAutoDetect}</label>
           <button className="btn-get-comps" onClick={handleGetSelectedComps}>
-            + Selected Comps
+            + {i18n.selectedComps}
           </button>
         </div>
         <div className="render-keyword-tags">
@@ -426,12 +466,12 @@ function RenderFolderSettings({ folder, onUpdate }: RenderFolderSettingsProps) {
             </span>
           ))}
           {(!folder.renderKeywords || folder.renderKeywords.length === 0) && (
-            <span className="keyword-tag warning-tag">⚠ No keywords</span>
+            <span className="keyword-tag warning-tag"><Icon icon="ph:warning-fill" width={12} color="#ff9800" style={{ marginRight: 2 }} /> {i18n.noKeywords}</span>
           )}
         </div>
         <input
           type="text"
-          placeholder="Add keyword (Enter to add)"
+          placeholder={i18n.addKeywordPlaceholder}
           onKeyDown={(e) => {
             if (e.key === "Enter") {
               const input = e.currentTarget;
@@ -452,7 +492,7 @@ function RenderFolderSettings({ folder, onUpdate }: RenderFolderSettingsProps) {
             onUpdate({ ...folder, skipOrganization: e.target.checked })
           }
         />
-        <span>Skip organization for items in this folder</span>
+        <span>{i18n.skipOrganization}</span>
       </label>
     </div>
   );

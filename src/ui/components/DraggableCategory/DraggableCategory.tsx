@@ -4,6 +4,7 @@
  */
 
 import { useState } from "react";
+import { Icon } from "@iconify/react";
 import { useHostApp } from "../../contexts";
 import { SubcategoryItem } from "../SubcategoryItem";
 import { generateId } from "../../../domain";
@@ -205,10 +206,10 @@ export function DraggableCategory({
           <span className="category-name" style={labelColorStyle}>
             {category.type}
           </span>
-          {hasFilters && <span className="keyword-badge">🔑</span>}
+          {hasFilters && <span className="keyword-badge"><Icon icon="ph:key-fill" width={12} color="#ffc107" /></span>}
           {hasSubcategories && (
             <span className="subcategory-badge">
-              📂{category.subcategories?.length}
+              <Icon icon="ph:folder-open-fill" width={12} color="#4fc3f7" />{category.subcategories?.length}
             </span>
           )}
           {duplicateKeywords && duplicateKeywords.length > 0 && (
@@ -216,7 +217,7 @@ export function DraggableCategory({
               className="duplicate-warning"
               title={`Duplicate: ${duplicateKeywords.join(", ")}`}
             >
-              ⚠️
+              <Icon icon="ph:warning-fill" width={12} color="#ff9800" />
             </span>
           )}
         </div>
@@ -258,7 +259,7 @@ export function DraggableCategory({
               <div className="keyword-tags">
                 {category.needsKeyword && !hasFilters && (
                   <span className="keyword-tag required-tag">
-                    ⚠ Filter Required
+                    <Icon icon="fluent:warning-24-filled" width={12} color="#ff9800" style={{ marginRight: 2 }} /> Filter Required
                   </span>
                 )}
                 {!category.needsKeyword && !hasFilters && (
@@ -303,7 +304,7 @@ export function DraggableCategory({
                   onUpdateLabelColor(e.target.checked, category.labelColor)
                 }
               />
-              <span>🎨 Apply Label Color</span>
+              <span><Icon icon="ph:palette-fill" width={14} style={{ marginRight: 4 }} /> Apply Label Color</span>
             </label>
             {category.enableLabelColor && (
               <div className="label-color-picker">
@@ -326,7 +327,7 @@ export function DraggableCategory({
           {/* Subcategories Section */}
           <div className="subcategories-section">
             <div className="subcategories-header">
-              <span>📂 Subcategories</span>
+              <span><Icon icon="ph:folder-open-fill" width={14} color="#4fc3f7" style={{ marginRight: 4 }} /> Subcategories</span>
               <button className="btn-add-subcategory" onClick={addSubcategory}>
                 + Add
               </button>

@@ -11,12 +11,53 @@
   color: #e0e0e0;
   font-size: 12px;
   position: relative;
+
 }
 
 .container {
   padding: 12px;
   max-width: 400px;
   margin: 0 auto;
+}
+
+/* Accordion Card - Common style for all accordion sections */
+.accordion-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: none;
+  border-radius: 8px;
+  margin-bottom: 6px;
+  overflow: hidden;
+  transition: all 0.2s ease;
+
+  // Collapsed state - minimal margin
+  &.collapsed {
+    margin-bottom: 2px;
+  }
+
+  h2 {
+    margin: 0;
+    padding: 8px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: transparent;
+    transition: all 0.2s;
+    user-select: none;
+  }
+
+  // Snap Organizer (header-section) - centered, no border, same height as others
+  &.header-section {
+    border: none;
+    background: transparent;
+
+    h2 {
+      justify-content: center;
+    }
+  }
+
 }
 
 /* Drop Overlay */
@@ -118,15 +159,15 @@
 
 .version {
   font-size: 10px;
-  color: #666;
-  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 100, 100, 0.8);
+  background: rgba(255, 80, 80, 0.15);
   padding: 2px 8px;
   border-radius: 10px;
 }
 
 /* Stats Section */
 .stats-section {
-  margin-bottom: 16px;
+  // margin handled by .accordion-card
 }
 
 .stats-grid {
@@ -159,7 +200,7 @@
 /* Folders Section */
 .folders-section,
 .exceptions-section {
-  margin-bottom: 16px;
+  // margin handled by .accordion-card
 }
 
 .folders-section h2,
@@ -168,7 +209,7 @@
   text-transform: uppercase;
   letter-spacing: 0.5px;
   color: #888;
-  margin-bottom: 8px;
+  margin-bottom: 0;  // collapsed 시 공간 제거
   cursor: pointer;
   user-select: none;
 }
@@ -177,6 +218,7 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
+  margin-left: 0.5em;
 }
 
 /* Folder Item */
@@ -267,19 +309,16 @@
 /* Folder Content */
 .folder-content {
   padding: 8px 12px 12px 32px;
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
   animation: slideDown 0.15s ease;
 }
 
 @keyframes slideDown {
   from {
     opacity: 0;
-    transform: translateY(-8px);
   }
 
   to {
     opacity: 1;
-    transform: translateY(0);
   }
 }
 
@@ -714,7 +753,7 @@
 
 /* Settings Section */
 .settings-section {
-  margin-bottom: 16px;
+  // margin handled by .accordion-card
 }
 
 .settings-section h2 {
@@ -722,7 +761,7 @@
   text-transform: uppercase;
   letter-spacing: 0.5px;
   color: #888;
-  margin-bottom: 8px;
+  margin-bottom: 0;  // collapsed 시 공간 제거
   cursor: pointer;
   user-select: none;
 }
@@ -752,6 +791,9 @@
   border-radius: 4px;
   cursor: pointer;
   transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .btn-export {
@@ -782,11 +824,34 @@
   gap: 8px;
   cursor: pointer;
   font-size: 11px;
+  margin-left: 1em;
   color: #ccc;
 }
 
 .setting-item input {
   accent-color: #4fc3f7;
+}
+
+.setting-item.language-select {
+  cursor: pointer;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+
+  select {
+    margin-left: auto;
+    padding: 4px 8px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    color: #fff;
+    font-size: 11px;
+    cursor: pointer;
+
+    &:hover {
+      border-color: rgba(255, 255, 255, 0.4);
+    }
+  }
 }
 
 /* Buttons */
@@ -813,7 +878,7 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .btn-organize {
@@ -823,12 +888,15 @@
   border: none;
   border-radius: 6px;
   color: #000;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.2s;
   text-transform: uppercase;
   letter-spacing: 1px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .btn-organize:hover:not(:disabled) {
@@ -870,6 +938,9 @@
   font-size: 11px;
   cursor: pointer;
   transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .btn-reset:hover {
@@ -881,6 +952,7 @@
 .result-section {
   position: relative;
   padding: 12px;
+  margin: 6px 0;
   border-radius: 6px;
   animation: slideIn 0.3s ease;
 }
@@ -1236,7 +1308,7 @@
 
 // ===== Batch Rename Section =====
 .batch-rename-section {
-  margin-bottom: 16px;
+  // margin handled by .accordion-card
 
   h2 {
     display: flex;
@@ -1244,7 +1316,7 @@
     gap: 6px;
     font-size: 12px;
     font-weight: 600;
-    margin-bottom: 8px;
+    margin-bottom: 0;  // collapsed 시 공간 제거
     cursor: pointer;
     user-select: none;
     color: #81d4fa;
@@ -1256,14 +1328,15 @@
 }
 
 .batch-rename-content {
-  padding: 12px;
-  background: linear-gradient(145deg, rgba(40, 40, 50, 0.9), rgba(30, 30, 40, 0.95));
-  border-radius: 8px;
-  border: 1px solid rgba(129, 212, 250, 0.2);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .btn-get-selection {
   width: 100%;
+  max-width: 200px;
   padding: 10px 16px;
   font-size: 11px;
   font-weight: 600;
@@ -1274,6 +1347,9 @@
   color: #fff;
   margin-bottom: 12px;
   transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .btn-get-selection:hover {
@@ -1282,6 +1358,7 @@
 }
 
 .rename-options {
+  width: 100%;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -1385,6 +1462,7 @@
 
 .btn-apply-rename {
   width: 100%;
+  max-width: 200px;
   padding: 10px 16px;
   font-size: 11px;
   font-weight: 600;
@@ -1394,6 +1472,9 @@
   background: linear-gradient(145deg, #43a047, #2e7d32);
   color: #fff;
   transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .btn-apply-rename:hover {
@@ -1423,8 +1504,8 @@
 }
 
 .color-picker {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
   gap: 4px;
   margin-top: 8px;
 }
@@ -1447,6 +1528,30 @@
 .color-swatch.selected {
   border-color: #fff;
   box-shadow: 0 0 4px rgba(255, 255, 255, 0.5);
+}
+
+/* Isolate Options Section */
+.isolate-options-section {
+  margin-top: 12px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.isolate-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.isolate-option input {
+  accent-color: #ff9800;
+  width: 12px;
+  height: 12px;
 }
 
 /* Label Colors - uses CSS variables with fallback defaults */
@@ -1527,6 +1632,28 @@
   margin-top: 8px;
 }
 
+.btn-scan {
+  width: 100%;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  background: rgba(79, 195, 247, 0.1);
+  border: 1px solid rgba(79, 195, 247, 0.3);
+  border-radius: 6px;
+  color: #4fc3f7;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-scan:hover {
+  background: rgba(79, 195, 247, 0.2);
+  border-color: #4fc3f7;
+}
+
 .health-warning-dot {
   font-size: 10px;
 }
@@ -1596,6 +1723,9 @@
   border-radius: 4px;
   cursor: pointer;
   transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .btn-health-action.missing {

@@ -1,5 +1,5 @@
 /**
- * AE Folder Organizer - Domain Types
+ * Snap Organizer - Domain Types
  * Single source of truth for all type definitions
  */
 
@@ -87,6 +87,9 @@ export interface OrganizerSettings {
   deleteEmptyFolders: boolean;
   showStats: boolean;
   applyFolderLabelColor: boolean;
+  language?: "en" | "ko" | "auto";
+  isolateMissing?: boolean;
+  isolateUnused?: boolean;
 }
 
 // ===== Organizer Config =====

@@ -1,5 +1,5 @@
 /**
- * AE Folder Organizer - Config Models
+ * Snap Organizer - Config Models
  * Pure functions for configuration management
  */
 

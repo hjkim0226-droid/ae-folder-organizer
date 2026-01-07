@@ -1,5 +1,5 @@
 /**
- * AE Folder Organizer - Default Configuration
+ * Snap Organizer - Default Configuration
  */
 
 import type { CategoryType, VersionedConfig } from "../types";
@@ -40,7 +40,7 @@ export const DEFAULT_CONFIG: VersionedConfig = {
       name: "Render",
       order: 0,
       isRenderFolder: true,
-      renderKeywords: ["Render"],
+      renderKeywords: ["Main", "Render"],
       skipOrganization: true,
       categories: [],
     },
@@ -72,6 +72,9 @@ export const DEFAULT_CONFIG: VersionedConfig = {
     deleteEmptyFolders: true,
     showStats: true,
     applyFolderLabelColor: false,
+    language: "auto",
+    isolateMissing: false,
+    isolateUnused: false,
   },
 };
 
