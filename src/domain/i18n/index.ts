@@ -95,6 +95,10 @@ export interface Translations {
   // Isolate Options
   isolateMissing: string;
   isolateUnused: string;
+
+  // Duplicate Detection
+  duplicate: string;
+  mergeDuplicates: string;
 }
 
 const en: Translations = {
@@ -187,6 +191,10 @@ const en: Translations = {
   // Isolate Options
   isolateMissing: "Isolate Missing Footage",
   isolateUnused: "Isolate Unused Assets",
+
+  // Duplicate Detection
+  duplicate: "Duplicate",
+  mergeDuplicates: "Merge Duplicates",
 };
 
 const ko: Translations = {
@@ -279,6 +287,10 @@ const ko: Translations = {
   // Isolate Options
   isolateMissing: "미싱 푸티지 격리",
   isolateUnused: "미사용 에셋 격리",
+
+  // Duplicate Detection
+  duplicate: "중복",
+  mergeDuplicates: "중복 아이템 병합",
 };
 
 const ja: Translations = {
@@ -371,6 +383,10 @@ const ja: Translations = {
   // Isolate Options
   isolateMissing: "欠落フッテージを隔離",
   isolateUnused: "未使用アセットを隔離",
+
+  // Duplicate Detection
+  duplicate: "重複",
+  mergeDuplicates: "重複アイテムを統合",
 };
 
 const zh: Translations = {
@@ -463,6 +479,10 @@ const zh: Translations = {
   // Isolate Options
   isolateMissing: "隔离缺失素材",
   isolateUnused: "隔离未使用资源",
+
+  // Duplicate Detection
+  duplicate: "重复",
+  mergeDuplicates: "合并重复项",
 };
 
 const zhTW: Translations = {
@@ -555,6 +575,10 @@ const zhTW: Translations = {
   // Isolate Options
   isolateMissing: "隔離遺失素材",
   isolateUnused: "隔離未使用資源",
+
+  // Duplicate Detection
+  duplicate: "重複",
+  mergeDuplicates: "合併重複項目",
 };
 
 export const translations: Record<Language, Translations> = {

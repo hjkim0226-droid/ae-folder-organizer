@@ -180,6 +180,14 @@ function AppContent() {
             console.error("Failed to isolate unused assets:", e);
           }
         }
+        if (config.settings.mergeDuplicates) {
+          try {
+            await evalTS("mergeDuplicateFootage");
+          } catch (e) {
+            isolateErrors.push(i18n.mergeDuplicates);
+            console.error("Failed to merge duplicate footage:", e);
+          }
+        }
 
         // Show isolate errors if any
         if (isolateErrors.length > 0) {
@@ -354,7 +362,7 @@ function AppContent() {
         <section className={`header-section accordion-card${!showHeader ? ' collapsed' : ''}`}>
           <h2 onClick={() => setShowHeader(!showHeader)} style={{ cursor: 'pointer' }}>
             {showHeader ? "▼" : "▶"} <Icon icon="ph:lightning-fill" width={16} color="#ffca28" style={{ marginRight: 4 }} /> Snap Organizer
-            {stats && (stats.missingFootage > 0 || stats.unusedItems > 0) && (
+            {stats && (stats.missingFootage > 0 || stats.unusedItems > 0 || stats.duplicateFootage > 0) && (
               <Icon icon="ph:warning-fill" width={14} color="#ff9800" style={{ marginLeft: 6 }} />
             )}
             <span className="version">v{version}</span>
@@ -399,6 +407,12 @@ function AppContent() {
                       {stats.unusedItems}
                     </span>
                     <span className="health-label">{i18n.unused}</span>
+                  </div>
+                  <div className={`health-stat ${stats.duplicateFootage > 0 ? 'has-issue' : ''}`}>
+                    <span className={`health-value ${stats.duplicateFootage ? "info" : "ok"}`}>
+                      {stats.duplicateFootage}
+                    </span>
+                    <span className="health-label">{i18n.duplicate}</span>
                   </div>
                 </div>
               </div>

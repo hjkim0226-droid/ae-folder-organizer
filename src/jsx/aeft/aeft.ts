@@ -85,6 +85,10 @@ interface ProjectStats {
   sequences: number;
   solids: number;
   folders: number;
+  // Health Check
+  missingFootage: number;
+  unusedItems: number;
+  duplicateFootage: number;
 }
 
 // ===== Helper: Project Validation =====
@@ -566,6 +570,7 @@ export const getProjectStats = (): ProjectStats => {
       folders: 0,
       missingFootage: 0,
       unusedItems: 0,
+      duplicateFootage: 0,
     };
   }
 
@@ -581,7 +586,11 @@ export const getProjectStats = (): ProjectStats => {
     folders: 0,
     missingFootage: 0,
     unusedItems: 0,
+    duplicateFootage: 0,
   };
+
+  // Track file paths to detect duplicates
+  const filePathMap: { [path: string]: number } = {};
 
   // Collect all used item IDs (for unused detection)
   const usedItemIds: { [id: number]: boolean } = {};
@@ -608,6 +617,21 @@ export const getProjectStats = (): ProjectStats => {
         stats.missingFootage++;
       }
 
+      // Track file path for duplicate detection (skip solids and missing)
+      if (!isSolid(item) && !item.footageMissing) {
+        if (item.mainSource instanceof FileSource) {
+          const source = item.mainSource as FileSource;
+          if (source.file) {
+            const filePath = source.file.fsName;
+            if (filePathMap[filePath]) {
+              filePathMap[filePath]++;
+            } else {
+              filePathMap[filePath] = 1;
+            }
+          }
+        }
+      }
+
       if (isSolid(item)) {
         stats.solids++;
       } else if (isSequence(item)) {
@@ -630,6 +654,13 @@ export const getProjectStats = (): ProjectStats => {
           stats.footage++;
         }
       }
+    }
+  }
+
+  // Count duplicate footage items
+  for (const path in filePathMap) {
+    if (filePathMap[path] > 1) {
+      stats.duplicateFootage += filePathMap[path];
     }
   }
 
@@ -974,6 +1005,158 @@ export const isolateUnusedAssets = (renderKeywordsJson: string): IsolateResult =
 
       app.endUndoGroup();
     }
+  } catch (e: any) {
+    result.success = false;
+    result.error = e.toString();
+  }
+
+  return result;
+};
+
+// ===== Duplicate Footage Detection & Merge =====
+
+interface DuplicateGroup {
+  filePath: string;
+  items: { id: number; name: string }[];
+}
+
+interface MergeDuplicatesResult {
+  success: boolean;
+  mergedCount: number;
+  deletedCount: number;
+  error?: string;
+}
+
+/**
+ * Find duplicate footage items (same file path imported multiple times)
+ * Returns groups of duplicate items
+ */
+export const findDuplicateFootage = (): DuplicateGroup[] => {
+  const validation = validateProject();
+  if (!validation.valid) {
+    return [];
+  }
+
+  const project = app.project;
+  const filePathMap: { [path: string]: { id: number; name: string }[] } = {};
+
+  // Collect all footage items by file path
+  for (let i = 1; i <= project.numItems; i++) {
+    const item = project.item(i);
+
+    if (item instanceof FootageItem && !isSolid(item) && !item.footageMissing) {
+      if (item.mainSource instanceof FileSource) {
+        const source = item.mainSource as FileSource;
+        if (source.file) {
+          const filePath = source.file.fsName;
+          if (!filePathMap[filePath]) {
+            filePathMap[filePath] = [];
+          }
+          filePathMap[filePath].push({ id: item.id, name: item.name });
+        }
+      }
+    }
+  }
+
+  // Filter to only groups with duplicates
+  const duplicateGroups: DuplicateGroup[] = [];
+  for (const filePath in filePathMap) {
+    if (filePathMap[filePath].length > 1) {
+      duplicateGroups.push({
+        filePath: filePath,
+        items: filePathMap[filePath],
+      });
+    }
+  }
+
+  return duplicateGroups;
+};
+
+/**
+ * Merge duplicate footage items
+ * Keeps the first item, replaces references in all comps, then removes duplicates
+ */
+export const mergeDuplicateFootage = (): MergeDuplicatesResult => {
+  const validation = validateProject();
+  if (!validation.valid) {
+    return { success: false, mergedCount: 0, deletedCount: 0, error: validation.error };
+  }
+
+  const result: MergeDuplicatesResult = {
+    success: true,
+    mergedCount: 0,
+    deletedCount: 0,
+  };
+
+  try {
+    const project = app.project;
+    const duplicateGroups = findDuplicateFootage();
+
+    if (duplicateGroups.length === 0) {
+      return result; // No duplicates to merge
+    }
+
+    app.beginUndoGroup("Merge Duplicate Footage");
+
+    for (let g = 0; g < duplicateGroups.length; g++) {
+      const group = duplicateGroups[g];
+      if (group.items.length < 2) continue;
+
+      // Keep the first item as the master
+      const masterId = group.items[0].id;
+      let masterItem: FootageItem | null = null;
+
+      // Find master item
+      for (let i = 1; i <= project.numItems; i++) {
+        const item = project.item(i);
+        if (item.id === masterId && item instanceof FootageItem) {
+          masterItem = item;
+          break;
+        }
+      }
+
+      if (!masterItem) continue;
+
+      // Process duplicates (skip the first one which is the master)
+      for (let d = 1; d < group.items.length; d++) {
+        const dupId = group.items[d].id;
+        let dupItem: FootageItem | null = null;
+
+        // Find duplicate item
+        for (let i = 1; i <= project.numItems; i++) {
+          const item = project.item(i);
+          if (item.id === dupId && item instanceof FootageItem) {
+            dupItem = item;
+            break;
+          }
+        }
+
+        if (!dupItem) continue;
+
+        // Replace all references to duplicate with master in all comps
+        for (let c = 1; c <= project.numItems; c++) {
+          const comp = project.item(c);
+          if (!(comp instanceof CompItem)) continue;
+
+          for (let l = comp.numLayers; l >= 1; l--) {
+            const layer = comp.layer(l);
+            if (layer.source && layer.source.id === dupId) {
+              // Replace source with master
+              // @ts-ignore - replaceSource exists
+              layer.replaceSource(masterItem, false);
+            }
+          }
+        }
+
+        // Remove the duplicate item
+        dupItem.remove();
+        result.deletedCount++;
+      }
+
+      result.mergedCount++;
+    }
+
+    app.endUndoGroup();
   } catch (e: any) {
     result.success = false;
     result.error = e.toString();

@@ -401,6 +401,16 @@ export function FolderItem({
                 />
                 <span><Icon icon="ph:archive-fill" width={14} color="#ffeb3b" style={{ marginRight: 4 }} /> {i18n.isolateUnused}</span>
               </label>
+              <label className="isolate-option">
+                <input
+                  type="checkbox"
+                  checked={config.settings.mergeDuplicates || false}
+                  onChange={(e) =>
+                    updateSettings({ mergeDuplicates: e.target.checked })
+                  }
+                />
+                <span><Icon icon="ph:copy-fill" width={14} color="#4fc3f7" style={{ marginRight: 4 }} /> {i18n.mergeDuplicates}</span>
+              </label>
             </div>
           )}
         </div>

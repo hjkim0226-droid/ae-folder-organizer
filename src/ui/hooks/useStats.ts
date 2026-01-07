@@ -25,6 +25,7 @@ const DEFAULT_STATS: ProjectStats = {
   folders: 0,
   missingFootage: 0,
   unusedItems: 0,
+  duplicateFootage: 0,
 };
 
 export function useStats(autoRefresh = true): UseStatsReturn {

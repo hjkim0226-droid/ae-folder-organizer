@@ -90,6 +90,7 @@ export interface OrganizerSettings {
   language?: "en" | "ko" | "ja" | "zh" | "zh-TW" | "auto";
   isolateMissing?: boolean;
   isolateUnused?: boolean;
+  mergeDuplicates?: boolean;
 }
 
 // ===== Organizer Config =====
@@ -136,6 +137,7 @@ export interface ProjectStats {
   // Health Check
   missingFootage: number;
   unusedItems: number;
+  duplicateFootage: number;
 }
 
 // ===== Health Check Result =====
