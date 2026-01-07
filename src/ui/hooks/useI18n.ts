@@ -1,6 +1,6 @@
 /**
  * useI18n Hook
- * Provides internationalization support with Korean/English
+ * Provides internationalization support (EN/KO/JA/ZH)
  */
 
 import { useMemo } from "react";

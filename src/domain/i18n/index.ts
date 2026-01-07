@@ -1,9 +1,9 @@
 /**
  * Snap Organizer - Internationalization (i18n)
- * Supports English and Korean
+ * Supports English, Korean, Japanese, and Chinese (Simplified)
  */
 
-export type Language = "en" | "ko";
+export type Language = "en" | "ko" | "ja" | "zh";
 
 export interface Translations {
   // Header
@@ -281,9 +281,195 @@ const ko: Translations = {
   isolateUnused: "미사용 에셋 격리",
 };
 
+const ja: Translations = {
+  // Header
+  scanProject: "プロジェクトをスキャン",
+  version: "v",
+
+  // Stats
+  comps: "コンポ",
+  sequences: "シーケンス",
+  footage: "フッテージ",
+  clips: "クリップ",
+  images: "画像",
+  audio: "オーディオ",
+
+  // Health Check
+  missing: "欠落",
+  unused: "未使用",
+  isolate: "隔離",
+
+  // Sections
+  folderStructure: "フォルダ構造",
+  exceptions: "例外ルール",
+  batchRename: "一括リネーム",
+  settings: "設定",
+
+  // Folder Actions
+  addFolder: "フォルダを追加",
+  addCategory: "カテゴリを追加",
+  addSubcategory: "サブカテゴリを追加",
+  addFilter: "フィルタを追加",
+  renderKeywords: "レンダーキーワード",
+
+  // Exceptions
+  addException: "例外を追加",
+  nameContains: "名前に含む",
+  extension: "拡張子",
+
+  // Batch Rename
+  getSelectedItems: "選択項目を取得",
+  prefix: "接頭辞",
+  suffix: "接尾辞",
+  find: "検索",
+  replace: "置換",
+  preview: "プレビュー",
+  applyRename: "リネーム適用",
+  items: "件",
+  andMore: "他",
+
+  // Settings
+  showSourceOverview: "ソース統計を表示",
+  deleteEmptyFolders: "整理後に空フォルダを削除",
+  applyLabelColor: "フォルダにラベル色を適用",
+  language: "言語",
+  resetToDefault: "デフォルトに戻す",
+  exportConfig: "設定をエクスポート",
+  importConfig: "設定をインポート",
+
+  // Actions
+  organizeAll: "すべて整理",
+  organizing: "整理中...",
+
+  // Results
+  organizationComplete: "整理完了！",
+  skipped: "スキップ",
+  error: "エラー",
+
+  // Alerts
+  movedItems: "{count}件を「{folder}」フォルダに移動しました。",
+  undoHint: "(Ctrl+Zで元に戻す)",
+  renameSuccess: "{count}件のリネーム完了！",
+  configImported: "設定をインポートしました！",
+
+  // Categories
+  catComps: "コンポ",
+  catFootage: "フッテージ",
+  catImages: "画像",
+  catAudio: "オーディオ",
+  catSolids: "平面",
+
+  // Folder Settings
+  keywordsAutoDetect: "キーワード（自動検出）",
+  selectedComps: "選択中のコンポ",
+  noKeywords: "キーワードなし",
+  addKeywordPlaceholder: "キーワード追加（Enter）",
+  skipOrganization: "このフォルダ内の項目をスキップ",
+  enableLabelColor: "ラベル色",
+  sub: "サブ",
+
+  // Isolate Options
+  isolateMissing: "欠落フッテージを隔離",
+  isolateUnused: "未使用アセットを隔離",
+};
+
+const zh: Translations = {
+  // Header
+  scanProject: "扫描项目",
+  version: "v",
+
+  // Stats
+  comps: "合成",
+  sequences: "序列",
+  footage: "素材",
+  clips: "剪辑",
+  images: "图片",
+  audio: "音频",
+
+  // Health Check
+  missing: "缺失",
+  unused: "未使用",
+  isolate: "隔离",
+
+  // Sections
+  folderStructure: "文件夹结构",
+  exceptions: "例外规则",
+  batchRename: "批量重命名",
+  settings: "设置",
+
+  // Folder Actions
+  addFolder: "添加文件夹",
+  addCategory: "添加类别",
+  addSubcategory: "添加子类别",
+  addFilter: "添加筛选器",
+  renderKeywords: "渲染关键词",
+
+  // Exceptions
+  addException: "添加例外",
+  nameContains: "名称包含",
+  extension: "扩展名",
+
+  // Batch Rename
+  getSelectedItems: "获取选中项",
+  prefix: "前缀",
+  suffix: "后缀",
+  find: "查找",
+  replace: "替换",
+  preview: "预览",
+  applyRename: "应用重命名",
+  items: "项",
+  andMore: "等",
+
+  // Settings
+  showSourceOverview: "显示素材统计",
+  deleteEmptyFolders: "整理后删除空文件夹",
+  applyLabelColor: "为文件夹应用标签颜色",
+  language: "语言",
+  resetToDefault: "恢复默认",
+  exportConfig: "导出配置",
+  importConfig: "导入配置",
+
+  // Actions
+  organizeAll: "整理全部",
+  organizing: "整理中...",
+
+  // Results
+  organizationComplete: "整理完成！",
+  skipped: "已跳过",
+  error: "错误",
+
+  // Alerts
+  movedItems: "已将 {count} 项移动到「{folder}」文件夹。",
+  undoHint: "（Ctrl+Z 撤销）",
+  renameSuccess: "已重命名 {count} 项！",
+  configImported: "配置导入成功！",
+
+  // Categories
+  catComps: "合成",
+  catFootage: "素材",
+  catImages: "图片",
+  catAudio: "音频",
+  catSolids: "纯色",
+
+  // Folder Settings
+  keywordsAutoDetect: "关键词（自动检测）",
+  selectedComps: "选中的合成",
+  noKeywords: "无关键词",
+  addKeywordPlaceholder: "添加关键词（回车）",
+  skipOrganization: "跳过此文件夹内的项目",
+  enableLabelColor: "标签颜色",
+  sub: "子",
+
+  // Isolate Options
+  isolateMissing: "隔离缺失素材",
+  isolateUnused: "隔离未使用资源",
+};
+
 export const translations: Record<Language, Translations> = {
   en,
   ko,
+  ja,
+  zh,
 };
 
 /**
@@ -294,6 +480,12 @@ export function detectLanguage(): Language {
     const lang = navigator.language || (navigator as any).userLanguage || "en";
     if (lang.startsWith("ko")) {
       return "ko";
+    }
+    if (lang.startsWith("ja")) {
+      return "ja";
+    }
+    if (lang.startsWith("zh")) {
+      return "zh";
     }
   }
   return "en";
