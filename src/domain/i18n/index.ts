@@ -1,9 +1,9 @@
 /**
  * Snap Organizer - Internationalization (i18n)
- * Supports English, Korean, Japanese, and Chinese (Simplified)
+ * Supports English, Korean, Japanese, Chinese (Simplified & Traditional)
  */
 
-export type Language = "en" | "ko" | "ja" | "zh";
+export type Language = "en" | "ko" | "ja" | "zh" | "zh-TW";
 
 export interface Translations {
   // Header
@@ -465,11 +465,104 @@ const zh: Translations = {
   isolateUnused: "隔离未使用资源",
 };
 
+const zhTW: Translations = {
+  // Header
+  scanProject: "掃描專案",
+  version: "v",
+
+  // Stats
+  comps: "合成",
+  sequences: "序列",
+  footage: "素材",
+  clips: "剪輯",
+  images: "圖片",
+  audio: "音訊",
+
+  // Health Check
+  missing: "遺失",
+  unused: "未使用",
+  isolate: "隔離",
+
+  // Sections
+  folderStructure: "資料夾結構",
+  exceptions: "例外規則",
+  batchRename: "批次重新命名",
+  settings: "設定",
+
+  // Folder Actions
+  addFolder: "新增資料夾",
+  addCategory: "新增類別",
+  addSubcategory: "新增子類別",
+  addFilter: "新增篩選器",
+  renderKeywords: "算圖關鍵字",
+
+  // Exceptions
+  addException: "新增例外",
+  nameContains: "名稱包含",
+  extension: "副檔名",
+
+  // Batch Rename
+  getSelectedItems: "取得選取項目",
+  prefix: "前綴",
+  suffix: "後綴",
+  find: "尋找",
+  replace: "取代",
+  preview: "預覽",
+  applyRename: "套用重新命名",
+  items: "項",
+  andMore: "等",
+
+  // Settings
+  showSourceOverview: "顯示素材統計",
+  deleteEmptyFolders: "整理後刪除空資料夾",
+  applyLabelColor: "為資料夾套用標籤顏色",
+  language: "語言",
+  resetToDefault: "重設為預設值",
+  exportConfig: "匯出設定",
+  importConfig: "匯入設定",
+
+  // Actions
+  organizeAll: "整理全部",
+  organizing: "整理中...",
+
+  // Results
+  organizationComplete: "整理完成！",
+  skipped: "已略過",
+  error: "錯誤",
+
+  // Alerts
+  movedItems: "已將 {count} 項移至「{folder}」資料夾。",
+  undoHint: "（Ctrl+Z 復原）",
+  renameSuccess: "已重新命名 {count} 項！",
+  configImported: "設定匯入成功！",
+
+  // Categories
+  catComps: "合成",
+  catFootage: "素材",
+  catImages: "圖片",
+  catAudio: "音訊",
+  catSolids: "純色",
+
+  // Folder Settings
+  keywordsAutoDetect: "關鍵字（自動偵測）",
+  selectedComps: "選取的合成",
+  noKeywords: "無關鍵字",
+  addKeywordPlaceholder: "新增關鍵字（Enter）",
+  skipOrganization: "略過此資料夾內的項目",
+  enableLabelColor: "標籤顏色",
+  sub: "子",
+
+  // Isolate Options
+  isolateMissing: "隔離遺失素材",
+  isolateUnused: "隔離未使用資源",
+};
+
 export const translations: Record<Language, Translations> = {
   en,
   ko,
   ja,
   zh,
+  "zh-TW": zhTW,
 };
 
 /**
@@ -484,6 +577,11 @@ export function detectLanguage(): Language {
     if (lang.startsWith("ja")) {
       return "ja";
     }
+    // Check Traditional Chinese first (zh-TW, zh-HK, zh-Hant)
+    if (lang === "zh-TW" || lang === "zh-HK" || lang === "zh-MO" || lang.includes("Hant")) {
+      return "zh-TW";
+    }
+    // Simplified Chinese (zh-CN, zh-SG, zh-Hans, or just zh)
     if (lang.startsWith("zh")) {
       return "zh";
     }

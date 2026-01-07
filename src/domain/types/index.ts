@@ -87,7 +87,7 @@ export interface OrganizerSettings {
   deleteEmptyFolders: boolean;
   showStats: boolean;
   applyFolderLabelColor: boolean;
-  language?: "en" | "ko" | "ja" | "zh" | "auto";
+  language?: "en" | "ko" | "ja" | "zh" | "zh-TW" | "auto";
   isolateMissing?: boolean;
   isolateUnused?: boolean;
 }
