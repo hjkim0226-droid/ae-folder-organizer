@@ -1248,34 +1248,59 @@ export const reloadAllFootage = (): ReloadResult => {
 
 /**
  * Get label colors from AE preferences
- * Returns array of 16 hex color strings
+ * Solution from Justin Taylor: https://community.adobe.com/t5/after-effects-discussions/reading-the-label-colors-from-preferences-file/m-p/12135463
+ * Returns array of 16 hex color strings (with "#" prefix)
  */
 export const getLabelColors = (): string[] => {
   const colors: string[] = [];
 
   try {
-    // AE 24.0+ has app.project.labelColors (array of LabelColor objects)
+    // Set encoding for Windows-1252 preference values
     // @ts-ignore
-    if (app.project && app.project.labelColors) {
-      // @ts-ignore
-      const labelColors = app.project.labelColors;
-      for (let i = 0; i < 16; i++) {
-        try {
-          // LabelColor has getValue() that returns [r, g, b] array (0-1 range)
-          // @ts-ignore
-          const rgb = labelColors[i];
-          if (rgb && rgb.length >= 3) {
-            const r = Math.round(rgb[0] * 255);
-            const g = Math.round(rgb[1] * 255);
-            const b = Math.round(rgb[2] * 255);
-            const hex = "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
-            colors.push(hex);
-          } else {
-            colors.push("");
+    $.appEncoding = "CP1252";
+
+    // Windows-1252 character code mapping for out-of-range ASCII values
+    const windows1252Map: { [key: number]: number } = {
+      338: 140, 339: 156, 352: 138, 353: 154, 376: 159, 381: 142, 382: 158,
+      402: 131, 710: 136, 732: 152, 8211: 150, 8212: 151, 8216: 145, 8217: 146,
+      8218: 130, 8220: 147, 8221: 148, 8222: 132, 8224: 134, 8225: 135,
+      8226: 149, 8230: 133, 8240: 137, 8249: 139, 8250: 155, 8364: 128,
+      8482: 153, 65533173: 173
+    };
+
+    const colorValueSectionName = "Label Preference Color Section 5";
+    // @ts-ignore
+    const prefFile = PREFType.PREF_Type_MACHINE_INDEPENDENT;
+
+    for (let i = 1; i <= 16; i++) {
+      try {
+        const colorValueKeyName = "Label Color ID 2 # " + i.toString();
+        const colorValuePref = app.preferences.getPrefAsString(
+          colorValueSectionName,
+          colorValueKeyName,
+          prefFile
+        );
+
+        let colorValue = "";
+        // Start from index 1 to skip the first character (encoding marker)
+        for (let j = 1; j < colorValuePref.length; j++) {
+          let charCode = colorValuePref.charCodeAt(j);
+          // Map out-of-range ASCII values to Windows-1252
+          if (charCode > 254 && windows1252Map[charCode]) {
+            charCode = windows1252Map[charCode];
           }
-        } catch (e) {
-          colors.push("");
+
+          let newCode = charCode.toString(16).toUpperCase();
+          // Pad single-character hex values with leading zero
+          if (newCode.length === 1) {
+            newCode = "0" + newCode;
+          }
+          colorValue += newCode;
         }
+
+        colors.push("#" + colorValue);
+      } catch (e) {
+        colors.push("");
       }
     }
   } catch (e) {
