@@ -1,5 +1,5 @@
 /**
- * AE Folder Organizer - ExtendScript Core Logic v1.1
+ * Snap Organizer - ExtendScript Core Logic v1.1
  * Config-based folder organization with sequence detection
  */
 
@@ -123,6 +123,22 @@ const getFileExtension = (name: string): string => {
 };
 
 /**
+ * Get actual file extension from FootageItem's source file
+ * Uses mainSource.file.name for accurate extension detection
+ * Falls back to item.name if no file source available
+ */
+const getActualFileExtension = (item: FootageItem): string => {
+  if (item.mainSource instanceof FileSource) {
+    const source = item.mainSource as FileSource;
+    if (source.file) {
+      return getFileExtension(source.file.name);
+    }
+  }
+  // Fallback to item name
+  return getFileExtension(item.name);
+};
+
+/**
  * ES3-compatible trim function
  */
 const trimStr = (str: string): string => {
@@ -142,7 +158,7 @@ const isSequence = (item: FootageItem): boolean => {
   if (source.isStill) return false;
 
   // If not still, check if it's an image format (= image sequence)
-  const ext = getFileExtension(item.name);
+  const ext = getActualFileExtension(item);
 
   // Not still + image extension = image sequence
   for (let i = 0; i < ALL_SEQUENCE_EXTENSIONS.length; i++) {
@@ -156,7 +172,7 @@ const isSequence = (item: FootageItem): boolean => {
  * Get sequence type for subfolder naming (e.g., "EXR Sequence")
  */
 const getSequenceType = (item: FootageItem): string => {
-  const ext = getFileExtension(item.name).toUpperCase();
+  const ext = getActualFileExtension(item).toUpperCase();
   return ext + " Sequence";
 };
 
@@ -209,8 +225,8 @@ const getItemCategory = (item: Item, detectSequences: boolean): string | null =>
     // Check for Sequence (return special type for later processing)
     if (detectSequences && isSequence(item)) return "Sequences";
 
-    // Get extension for categorization
-    const ext = getFileExtension(item.name);
+    // Get extension for categorization (use actual file extension)
+    const ext = getActualFileExtension(item);
 
     // Check Audio first (more specific)
     for (let i = 0; i < AUDIO_EXTENSIONS.length; i++) {
@@ -669,20 +685,31 @@ export const isolateMissingFootage = (): IsolateResult => {
   };
 
   try {
-    app.beginUndoGroup("Isolate Missing Footage");
-
     const project = app.project;
-    const missingFolder = getOrCreateRootFolder("_Missing");
 
+    // Collect missing items first
+    const itemsToMove: FootageItem[] = [];
     for (let i = 1; i <= project.numItems; i++) {
       const item = project.item(i);
       if (item instanceof FootageItem && item.footageMissing) {
-        item.parentFolder = missingFolder;
-        result.movedCount++;
+        // Skip if already in _Missing folder
+        if (item.parentFolder && item.parentFolder.name === "_Missing") continue;
+        itemsToMove.push(item);
       }
     }
 
-    app.endUndoGroup();
+    // Only create folder and move if there are items
+    if (itemsToMove.length > 0) {
+      app.beginUndoGroup("Isolate Missing Footage");
+      const missingFolder = getOrCreateRootFolder("_Missing");
+
+      for (let i = 0; i < itemsToMove.length; i++) {
+        itemsToMove[i].parentFolder = missingFolder;
+        result.movedCount++;
+      }
+
+      app.endUndoGroup();
+    }
   } catch (e: any) {
     result.success = false;
     result.error = e.toString();
@@ -753,10 +780,7 @@ export const isolateUnusedAssets = (renderKeywordsJson: string): IsolateResult =
   };
 
   try {
-    app.beginUndoGroup("Isolate Unused Assets");
-
     const project = app.project;
-    const unusedFolder = getOrCreateRootFolder("_Unused");
     const usedIds = getUsedItemIds(renderKeywords);
 
     // Collect items to move (avoid modifying while iterating)
@@ -780,13 +804,18 @@ export const isolateUnusedAssets = (renderKeywordsJson: string): IsolateResult =
       }
     }
 
-    // Move items
-    for (let i = 0; i < itemsToMove.length; i++) {
-      itemsToMove[i].parentFolder = unusedFolder;
-      result.movedCount++;
-    }
+    // Only create folder and move if there are items
+    if (itemsToMove.length > 0) {
+      app.beginUndoGroup("Isolate Unused Assets");
+      const unusedFolder = getOrCreateRootFolder("_Unused");
 
-    app.endUndoGroup();
+      for (let i = 0; i < itemsToMove.length; i++) {
+        itemsToMove[i].parentFolder = unusedFolder;
+        result.movedCount++;
+      }
+
+      app.endUndoGroup();
+    }
   } catch (e: any) {
     result.success = false;
     result.error = e.toString();
@@ -868,7 +897,7 @@ export const organizeProject = (configJson: string, itemIdsJson?: string): Organ
   }
 
   try {
-    app.beginUndoGroup("AE Folder Organizer");
+    app.beginUndoGroup("Snap Organizer");
     undoGroupStarted = true;
 
     const project = app.project;
