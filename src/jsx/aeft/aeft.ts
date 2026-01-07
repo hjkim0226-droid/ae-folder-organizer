@@ -666,11 +666,72 @@ interface IsolateResult {
   success: boolean;
   movedCount: number;
   folderName: string;
+  usedCount?: number;      // For missing: used items count
+  unusedCount?: number;    // For missing: unused items count
   error?: string;
 }
 
+// System folder names
+const SYSTEM_FOLDER_NAME = "99_System";
+const MISSING_USED_FOLDER = "_Missing_Used";
+const MISSING_UNUSED_FOLDER = "_Missing_Unused";
+const UNUSED_FOLDER = "_Unused";
+
 /**
- * Isolate missing footage items to _Missing folder
+ * Get or create a subfolder under 99_System
+ */
+const getOrCreateSystemSubfolder = (subfolderName: string): FolderItem => {
+  const project = app.project;
+  let systemFolder: FolderItem | null = null;
+
+  // Find or create 99_System folder
+  for (let i = 1; i <= project.numItems; i++) {
+    const item = project.item(i);
+    if (item instanceof FolderItem && item.name === SYSTEM_FOLDER_NAME && item.parentFolder === project.rootFolder) {
+      systemFolder = item;
+      break;
+    }
+  }
+
+  if (!systemFolder) {
+    systemFolder = project.items.addFolder(SYSTEM_FOLDER_NAME);
+  }
+
+  // Find or create subfolder
+  for (let i = 1; i <= systemFolder.numItems; i++) {
+    const item = systemFolder.item(i);
+    if (item instanceof FolderItem && item.name === subfolderName) {
+      return item;
+    }
+  }
+
+  return project.items.addFolder(subfolderName);
+};
+
+/**
+ * Check if a missing footage item is used in any comp
+ */
+const isMissingItemUsed = (item: FootageItem): boolean => {
+  const project = app.project;
+
+  for (let i = 1; i <= project.numItems; i++) {
+    const comp = project.item(i);
+    if (!(comp instanceof CompItem)) continue;
+
+    for (let l = 1; l <= comp.numLayers; l++) {
+      const layer = comp.layer(l);
+      // @ts-ignore - layer.source exists for AVLayer
+      if (layer.source && layer.source.id === item.id) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+};
+
+/**
+ * Isolate missing footage items to 99_System/_Missing_Used and _Missing_Unused
  */
 export const isolateMissingFootage = (): IsolateResult => {
   const validation = validateProject();
@@ -681,33 +742,96 @@ export const isolateMissingFootage = (): IsolateResult => {
   const result: IsolateResult = {
     success: true,
     movedCount: 0,
-    folderName: "_Missing",
+    folderName: SYSTEM_FOLDER_NAME,
+    usedCount: 0,
+    unusedCount: 0,
   };
 
   try {
     const project = app.project;
 
-    // Collect missing items first
-    const itemsToMove: FootageItem[] = [];
+    // Collect missing items, separating used vs unused
+    const usedItems: FootageItem[] = [];
+    const unusedItems: FootageItem[] = [];
+
     for (let i = 1; i <= project.numItems; i++) {
       const item = project.item(i);
       if (item instanceof FootageItem && item.footageMissing) {
-        // Skip if already in _Missing folder
-        if (item.parentFolder && item.parentFolder.name === "_Missing") continue;
-        itemsToMove.push(item);
+        // Skip if already in system missing folders
+        if (item.parentFolder) {
+          const parentName = item.parentFolder.name;
+          if (parentName === MISSING_USED_FOLDER || parentName === MISSING_UNUSED_FOLDER) continue;
+        }
+
+        if (isMissingItemUsed(item)) {
+          usedItems.push(item);
+        } else {
+          unusedItems.push(item);
+        }
       }
     }
 
-    // Only create folder and move if there are items
-    if (itemsToMove.length > 0) {
+    // Only create folders and move if there are items
+    const totalItems = usedItems.length + unusedItems.length;
+    if (totalItems > 0) {
       app.beginUndoGroup("Isolate Missing Footage");
-      const missingFolder = getOrCreateRootFolder("_Missing");
 
-      for (let i = 0; i < itemsToMove.length; i++) {
-        itemsToMove[i].parentFolder = missingFolder;
-        result.movedCount++;
+      // Find or create 99_System folder first
+      let systemFolder: FolderItem | null = null;
+      for (let i = 1; i <= project.numItems; i++) {
+        const item = project.item(i);
+        if (item instanceof FolderItem && item.name === SYSTEM_FOLDER_NAME && item.parentFolder === project.rootFolder) {
+          systemFolder = item;
+          break;
+        }
+      }
+      if (!systemFolder) {
+        systemFolder = project.items.addFolder(SYSTEM_FOLDER_NAME);
       }
 
+      // Move used missing items
+      if (usedItems.length > 0) {
+        let usedFolder: FolderItem | null = null;
+        for (let i = 1; i <= systemFolder.numItems; i++) {
+          const item = systemFolder.item(i);
+          if (item instanceof FolderItem && item.name === MISSING_USED_FOLDER) {
+            usedFolder = item;
+            break;
+          }
+        }
+        if (!usedFolder) {
+          usedFolder = project.items.addFolder(MISSING_USED_FOLDER);
+          usedFolder.parentFolder = systemFolder;
+        }
+
+        for (let i = 0; i < usedItems.length; i++) {
+          usedItems[i].parentFolder = usedFolder;
+        }
+        result.usedCount = usedItems.length;
+      }
+
+      // Move unused missing items
+      if (unusedItems.length > 0) {
+        let unusedFolder: FolderItem | null = null;
+        for (let i = 1; i <= systemFolder.numItems; i++) {
+          const item = systemFolder.item(i);
+          if (item instanceof FolderItem && item.name === MISSING_UNUSED_FOLDER) {
+            unusedFolder = item;
+            break;
+          }
+        }
+        if (!unusedFolder) {
+          unusedFolder = project.items.addFolder(MISSING_UNUSED_FOLDER);
+          unusedFolder.parentFolder = systemFolder;
+        }
+
+        for (let i = 0; i < unusedItems.length; i++) {
+          unusedItems[i].parentFolder = unusedFolder;
+        }
+        result.unusedCount = unusedItems.length;
+      }
+
+      result.movedCount = totalItems;
       app.endUndoGroup();
     }
   } catch (e: any) {
@@ -762,7 +886,7 @@ const getUsedItemIds = (renderKeywords: string[]): { [id: number]: boolean } => 
 };
 
 /**
- * Isolate unused items to _Unused folder
+ * Isolate unused items to 99_System/_Unused folder
  * @param renderKeywords Keywords to identify render comps (e.g., ["_render", "_final"])
  */
 export const isolateUnusedAssets = (renderKeywordsJson: string): IsolateResult => {
@@ -776,7 +900,7 @@ export const isolateUnusedAssets = (renderKeywordsJson: string): IsolateResult =
   const result: IsolateResult = {
     success: true,
     movedCount: 0,
-    folderName: "_Unused",
+    folderName: SYSTEM_FOLDER_NAME + "/" + UNUSED_FOLDER,
   };
 
   try {
@@ -795,8 +919,16 @@ export const isolateUnusedAssets = (renderKeywordsJson: string): IsolateResult =
       // Skip solids (usually intentionally unused)
       if (item instanceof FootageItem && isSolid(item)) continue;
 
-      // Skip items already in _Unused or _Missing folders
-      if (item.parentFolder && (item.parentFolder.name === "_Unused" || item.parentFolder.name === "_Missing")) continue;
+      // Skip items already in system health check folders
+      if (item.parentFolder) {
+        const parentName = item.parentFolder.name;
+        if (parentName === UNUSED_FOLDER ||
+            parentName === MISSING_USED_FOLDER ||
+            parentName === MISSING_UNUSED_FOLDER) continue;
+      }
+
+      // Skip missing footage (handled by isolateMissingFootage)
+      if (item instanceof FootageItem && item.footageMissing) continue;
 
       // If not used, mark for moving
       if (!usedIds[item.id]) {
@@ -807,7 +939,33 @@ export const isolateUnusedAssets = (renderKeywordsJson: string): IsolateResult =
     // Only create folder and move if there are items
     if (itemsToMove.length > 0) {
       app.beginUndoGroup("Isolate Unused Assets");
-      const unusedFolder = getOrCreateRootFolder("_Unused");
+
+      // Find or create 99_System folder first
+      let systemFolder: FolderItem | null = null;
+      for (let i = 1; i <= project.numItems; i++) {
+        const item = project.item(i);
+        if (item instanceof FolderItem && item.name === SYSTEM_FOLDER_NAME && item.parentFolder === project.rootFolder) {
+          systemFolder = item;
+          break;
+        }
+      }
+      if (!systemFolder) {
+        systemFolder = project.items.addFolder(SYSTEM_FOLDER_NAME);
+      }
+
+      // Find or create _Unused folder under System
+      let unusedFolder: FolderItem | null = null;
+      for (let i = 1; i <= systemFolder.numItems; i++) {
+        const item = systemFolder.item(i);
+        if (item instanceof FolderItem && item.name === UNUSED_FOLDER) {
+          unusedFolder = item;
+          break;
+        }
+      }
+      if (!unusedFolder) {
+        unusedFolder = project.items.addFolder(UNUSED_FOLDER);
+        unusedFolder.parentFolder = systemFolder;
+      }
 
       for (let i = 0; i < itemsToMove.length; i++) {
         itemsToMove[i].parentFolder = unusedFolder;
