@@ -1495,6 +1495,11 @@
   gap: 6px;
   cursor: pointer;
   font-size: 11px;
+
+  span {
+    display: inline-flex;
+    align-items: center;
+  }
 }
 
 .label-color-option input {
@@ -1572,6 +1577,23 @@
   --label-color-14: #999966;  /* Olive */
   --label-color-15: #666699;  /* Slate */
   --label-color-16: #996699;  /* Plum */
+}
+
+.color-none {
+  background: transparent;
+  border: 1px dashed rgba(255, 255, 255, 0.4) !important;
+  position: relative;
+
+  &::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: rgba(255, 255, 255, 0.5);
+    transform: rotate(-45deg);
+  }
 }
 
 .color-1 { background: var(--label-color-1); color: var(--label-color-1); }
@@ -1666,7 +1688,7 @@
 
 .health-summary {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, 1fr);
   gap: 8px;
   margin-bottom: 8px;
 }

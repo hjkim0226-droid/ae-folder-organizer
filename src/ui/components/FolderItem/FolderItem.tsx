@@ -269,6 +269,7 @@ export function FolderItem({
                         key={cat.type}
                         category={cat}
                         duplicateKeywords={catDuplicates}
+                        canDelete={!(isSystemFolder && cat.type === "Solids")}
                         onDelete={() => deleteCategory(cat.type)}
                         onToggleSubfolders={() => toggleSubfolders(cat.type)}
                         onUpdateFilters={(filters) =>
@@ -356,21 +357,21 @@ export function FolderItem({
                   onUpdate({ ...folder, enableLabelColor: e.target.checked })
                 }
               />
-              <span><Icon icon="ph:palette-fill" width={14} style={{ marginRight: 4 }} /> Apply Label Color</span>
+              <span><Icon icon="ph:palette-fill" width={14} color="#d7a860" style={{ marginRight: 4 }} /> Apply Label Color</span>
             </label>
             {folder.enableLabelColor && (
               <div className="color-picker">
-                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16].map(
+                {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16].map(
                   (colorIdx) => (
                     <button
                       key={colorIdx}
-                      className={`color-swatch color-${colorIdx} ${
+                      className={`color-swatch ${colorIdx === 0 ? "color-none" : `color-${colorIdx}`} ${
                         folder.labelColor === colorIdx ? "selected" : ""
                       }`}
                       onClick={() =>
                         onUpdate({ ...folder, labelColor: colorIdx })
                       }
-                      title={`Label ${colorIdx}`}
+                      title={colorIdx === 0 ? "None" : `Label ${colorIdx}`}
                     />
                   )
                 )}
